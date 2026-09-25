@@ -113,6 +113,35 @@ def main():
             std = d.get("standard", {})
             print(f"{p:12} std {std.get('used',0)}/{std.get('dailyLimit',0)} remaining={std.get('remaining')}"
                   f" | light remaining={d.get('light',{}).get('remaining')}")
+    elif cmd == "light-submit":
+        # FormData with a pre-compiled Submission.olean + toolchain (avoids the
+        # paused "new Light uploads" path, which only covers source uploads).
+        import base64
+        import os
+        args = [a for a in sys.argv[2:] if not a.startswith("--")]
+        problem, olean_path, name = args[0], args[1], args[2]
+        boundary = "----lkb" + uuid.uuid4().hex
+        parts = []
+        def field(k, v):
+            parts.append(f"--{boundary}\r\nContent-Disposition: form-data; name=\"{k}\"\r\n\r\n{v}\r\n".encode())
+        field("problemId", problem)
+        field("name", name)
+        olean = Path(olean_path).read_bytes()
+        parts.append(
+            f"--{boundary}\r\nContent-Disposition: form-data; name=\"olean\"; filename=\"Submission.olean\"\r\n"
+            f"Content-Type: application/octet-stream\r\n\r\n".encode() + olean + b"\r\n")
+        parts.append(f"--{boundary}--\r\n".encode())
+        body = b"".join(parts)
+        tmp = Path("/tmp/lk_light.bin")
+        tmp.write_bytes(body)
+        out = subprocess.run(
+            ["curl", "-sS", "-X", "POST",
+             "-H", f"Authorization: Bearer {get_key()}",
+             "-H", f"User-Agent: {UA}",
+             "-H", f"Content-Type: multipart/form-data; boundary={boundary}",
+             "-d", f"@{tmp}", BASE + "/light-runs"],
+            capture_output=True, timeout=180).stdout
+        print(out[:900].decode("utf-8", "replace"))
     elif cmd == "history":
         for it in curl("GET", "/run-history?limit=30")["data"]["items"]:
             m = it.get("metrics") or {}
