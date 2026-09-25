@@ -1,5 +1,11 @@
 import Spec
 
+/-!
+Baseline: generate the SHA-256 message schedule with a rolling
+16-word window.  Unlike the trusted specification, the evaluated path never
+repeatedly measures, drops from, or appends to a growing schedule.
+-/
+
 namespace Submission
 
 structure Window where
@@ -90,13 +96,10 @@ theorem fastStep_correct (d : Digest) : fastStep d = sha256step d := by
 theorem fastStep_fun : fastStep = sha256step :=
   funext fastStep_correct
 
-/-- TODO 1: Optimize this implementation. Keep it total and kernel-reducible. -/
 def impl (n : Nat) : Nat :=
   encodeDigest
     (iterDigest fastStep (sha256Steps n) (seedDigest (sha256Seed n)))
 
-/-- TODO 2: Prove that `impl n` equals `sha256Spec n` for every natural number n.
-Keep the theorem statement unchanged. -/
 theorem impl_correct : ∀ n, impl n = sha256Spec n := fun n =>
   congrArg
     (fun step => encodeDigest
