@@ -16,14 +16,3 @@ name = "Spec"
 
 [[lean_lib]]
 name = "Submission"
-
-[[lean_lib]]
-name = "Sieve"
-
-[[lean_exe]]
-name = "pccheck"
-root = "Main"
-
-[[lean_exe]]
-name = "pcdbg"
-root = "Debug"

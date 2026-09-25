@@ -16,10 +16,3 @@ name = "Spec"
 
 [[lean_lib]]
 name = "Submission"
-
-[[lean_lib]]
-name = "Mertens"
-
-[[lean_exe]]
-name = "mtcheck"
-root = "Main"
