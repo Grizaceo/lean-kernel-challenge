@@ -146,6 +146,15 @@ def main():
         for it in curl("GET", "/run-history?limit=30")["data"]["items"]:
             m = it.get("metrics") or {}
             print(f"run {it['runId']:4} {it['problemId']:13} {it['status']:8} verdict={str(it.get('verdict')):10} median={m.get('instructionMedian')}")
+    elif cmd == "slots":
+        # The judge's own test inputs live in each run's metrics.slots. This is
+        # the authoritative source for which n gets timed -- the /examples
+        # endpoint only carries the official solution source, not the inputs.
+        print_result(curl("GET", f"/runs/{sys.argv[2]}")["data"])
+        print("  raw slots:")
+        d = curl("GET", f"/runs/{sys.argv[2]}")["data"]
+        for s in (d.get("metrics") or {}).get("slots", []):
+            print(f"    {json.dumps(s)}")
     else:
         print(__doc__)
 

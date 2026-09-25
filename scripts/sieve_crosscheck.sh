@@ -9,8 +9,13 @@
 # Usage: scripts/sieve_crosscheck.sh <problem> <candidate-dir> <module> <exe-root>
 #   scripts/sieve_crosscheck.sh primecount candidates/primecount-sieve Sieve pccheck
 #   scripts/sieve_crosscheck.sh mertens    candidates/mertens-sieve    Mertens mtcheck
+#   scripts/sieve_crosscheck.sh partition  candidates/partition-euler  Part   ptcheck
 #
-# The cross-check Main.lean lives in <candidate-dir>-crosscheck/.
+# (Named for its origin in the sieve candidates, but it works for any
+# candidate whose correctness can be checked by comparing `impl` against the
+# Spec on the judge's inputs.)
+#
+# The cross-check Main.lean lives in <problem>-crosscheck/.
 
 set -euo pipefail
 
