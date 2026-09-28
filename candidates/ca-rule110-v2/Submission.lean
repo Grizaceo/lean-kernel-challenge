@@ -116,24 +116,74 @@ def initBits (seed : Nat) : Nat :=
 /-- The spec's `initRowFor` is `List.range ruleWidth |>.map f`, so element `j`
 is `f j` whenever `j < ruleWidth`, and `getD` past the end is `false`.
 
-`impl_correct` is discharged below, and the executable cross-check in
-`candidates/ca-rule110-crosscheck/` re-verifies this invariant on the judge's
-own inputs — the theorems are never executed, only `impl n` is timed. -/
+`List.getD_map` does not exist in this toolchain (verified against
+`env.constants`, not assumed); the route is `getD → getElem?`, then
+`List.getElem?_map`, then `getElem?_range` / `getElem?_eq_none` for the two
+sides of `j < ruleWidth`. -/
 theorem getD_initRowFor (seed j : Nat) :
     (initRowFor seed).getD j false = if j < ruleWidth then cellBit seed j else false := by
-  sorry
+  rw [initRowFor, List.getD_eq_getElem?_getD, List.getElem?_map]
+  by_cases hj : j < ruleWidth
+  · rw [List.getElem?_range hj, if_pos hj]; rfl
+  · rw [List.getElem?_eq_none (by simpa using Nat.le_of_not_gt hj), if_neg hj]; rfl
 
-/-- Low bits are already final: for `j < i`, cell `j` was prepended at step
-`i` (or earlier) and no later prepend can move it, since each prepend shifts
-the whole word left by one. -/
+theorem testBit_one_ge {m : Nat} (hm : 1 ≤ m) : (1 : Nat).testBit m = false := by
+  obtain ⟨m', rfl⟩ := Nat.exists_eq_succ_of_ne_zero (Nat.ne_of_gt hm)
+  rw [Nat.testBit_succ, Nat.div_eq_of_lt (by omega)]
+  simp
+
+theorem testBit_zero_all (m : Nat) : (0 : Nat).testBit m = false := by
+  simp [Nat.testBit]
+
+/-- The low and high `testBit` facts cannot be inducted separately: the case
+`j = i-1` of the low lemma needs the `i' ≤ j'` case one step down, so both
+live in a single conjunction over the same induction on `i`. -/
+theorem initBitsAux_testBit (seed i acc j : Nat) :
+    (j < i → (initBitsAux seed i acc).testBit j = cellBit seed j) ∧
+    (i ≤ j → (initBitsAux seed i acc).testBit j = (acc <<< i).testBit j) := by
+  induction i generalizing acc j with
+  | zero =>
+    refine ⟨fun hj => absurd hj (by omega), fun _ => ?_⟩
+    rw [initBitsAux, if_pos rfl, Nat.shiftLeft_zero]
+  | succ k ih =>
+    have hne : (k + 1) ≠ 0 := by omega
+    have hstep : initBitsAux seed (k + 1) acc
+        = initBitsAux seed k ((acc <<< 1) ||| (if cellBit seed k then 1 else 0)) := by
+      rw [initBitsAux, if_neg hne]
+      congr 1
+    have hkey : ((acc <<< 1) ||| (if cellBit seed k then 1 else 0)).testBit 0 = cellBit seed k := by
+      rw [Nat.testBit_or, Nat.testBit_shiftLeft]
+      cases cellBit seed k <;> simp
+    constructor
+    · intro hj
+      rw [hstep]
+      rcases Nat.lt_or_ge j k with hjk | hjk
+      · exact (ih _ _).1 hjk
+      · have hjk_eq : j = k := by omega
+        subst hjk_eq
+        rw [(ih _ _).2 (by omega), Nat.testBit_shiftLeft]
+        simp only [decide_true, Nat.le_refl, Nat.sub_self, Bool.true_and]
+        exact hkey
+    · intro hj
+      rw [hstep, (ih _ _).2 (by omega)]
+      have hkj : k ≤ j := by omega
+      have hjk1 : 1 ≤ j - k := by omega
+      have hsub : j - (k + 1) = j - k - 1 := by omega
+      simp only [Nat.testBit_shiftLeft, Nat.testBit_or, hkj, hjk1]
+      cases hcb : cellBit seed k with
+      | false =>
+        simp only [Bool.false_eq_true, if_false, testBit_zero_all,
+                   hj, hsub, decide_true, Bool.true_and, Bool.or_false]
+      | true =>
+        simp only [if_true]
+        rw [testBit_one_ge hjk1]
+        simp only [Bool.or_false, hj, hsub, decide_true, Bool.true_and]
+
 theorem testBit_initBitsAux_low (seed i acc j : Nat) (hj : j < i) :
-    (initBitsAux seed i acc).testBit j = cellBit seed j := by
-  sorry
-
+    (initBitsAux seed i acc).testBit j = cellBit seed j := (initBitsAux_testBit seed i acc j).1 hj
 
 theorem testBit_initBitsAux_high (seed i acc j : Nat) (hj : i ≤ j) :
-    (initBitsAux seed i acc).testBit j = (acc <<< i).testBit j := by
-  sorry
+    (initBitsAux seed i acc).testBit j = (acc <<< i).testBit j := (initBitsAux_testBit seed i acc j).2 hj
 
 
 theorem initBits_eq (seed : Nat) : initBits seed = encodeRow (initRowFor seed) := by

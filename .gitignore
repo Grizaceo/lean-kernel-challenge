@@ -60,3 +60,10 @@ prebuilt-tools/
 /rules/problem-scoring.md
 /rules/prelaunch.md
 /rules/stage1-rules.md
+
+# verification scratch: build logs, stripped sources, axiom-closure output
+.verify/
+
+# candidate scratch modules (never uploaded; the candidate is always Submission.lean)
+candidates/*/Finder.lean
+candidates/*/Work.lean
