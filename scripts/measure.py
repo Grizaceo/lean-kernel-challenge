@@ -129,6 +129,12 @@ def stage(candidate: Path, pdir: Path) -> Path:
     return backup
 
 
+# Return type of the problem's `impl`, used only to tell Lean how to `#eval` it.
+# Nat for every problem except mertens, whose M(n) is genuinely Int. Set from
+# `--type`; the judge's own value oracle accepts a negative literal.
+VALUE_TYPE = "Nat"
+
+
 def oracle_value(judge, pdir: Path, n: int, env: dict) -> str:
     """Recover the value `v` for the generated theorem `impl n = v`.
 
@@ -158,7 +164,7 @@ def oracle_value(judge, pdir: Path, n: int, env: dict) -> str:
         "import Submission\n"
         "set_option maxRecDepth 4000000\n"
         "set_option maxHeartbeats 0\n"
-        f"#eval show Nat from Submission.impl {n}\n"
+        f"#eval show {VALUE_TYPE} from Submission.impl {n}\n"
     )
     (pdir / "EvalVal.lean").write_text(src)
     rc, out = run(["lake", "env", "lean", "EvalVal.lean"], pdir, env)
@@ -166,10 +172,11 @@ def oracle_value(judge, pdir: Path, n: int, env: dict) -> str:
     if rc != 0:
         raise SystemExit(f"#eval oracle failed at n={n}:\n{out[-2000:]}")
     text = out.strip()
-    if not re.search(r"(?m)^\d+$", text):
+    # A negative value is legitimate: mertens' impl returns Int, not Nat.
+    m = re.search(r"(?m)^(-?\d+)$", text)
+    if not m:
         raise SystemExit(f"#eval oracle produced no integer at n={n}: {text[:200]!r}")
-    value = re.search(r"(?m)^(\d+)$", text).group(1)
-    return value
+    return m.group(1)
 
 
 def build_and_export(judge, pdir: Path, n: int, value: str, env: dict, work: Path):
@@ -297,8 +304,13 @@ def main() -> int:
     ap.add_argument("candidate")
     ap.add_argument("packed_n", type=int, nargs="?")
     ap.add_argument("--reps", type=int, default=3)
+    ap.add_argument("--type", dest="value_type", default="Nat",
+                    help="return type of impl, for #eval (mertens uses Int)")
     ap.add_argument("--group-check", action="store_true")
     args = ap.parse_args()
+
+    global VALUE_TYPE
+    VALUE_TYPE = args.value_type
 
     if not TIMER.exists():
         raise SystemExit(f"official timer missing: {TIMER}")
