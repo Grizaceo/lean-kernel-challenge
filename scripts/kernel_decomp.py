@@ -47,11 +47,11 @@ from measure import (  # noqa: E402
 )
 
 
-def oracle(pdir: Path, expr: str, env: dict) -> int:
+def oracle(pdir: Path, expr: str, env: dict, extra_imports: str = "") -> int:
     """#eval an arbitrary expression, returning its integer value."""
     (pdir / "DecompVal.lean").write_text(
         "import Submission\n"
-        "import Spec\n"
+        "import Spec\n" + extra_imports +
         "set_option maxRecDepth 4000000\n"
         "set_option maxHeartbeats 0\n"
         f"#eval show Nat from ({expr})\n")
@@ -64,7 +64,8 @@ def oracle(pdir: Path, expr: str, env: dict) -> int:
 
 
 def build_and_time(judge, pdir: Path, env: dict, const_name: str, args: list,
-                   value: int, label: str, reps: int) -> dict:
+                   value: int, label: str, reps: int,
+                   extra_imports: str = "") -> dict:
     """Generate `const arg… = value` as an Eq.refl declaration, export, replay.
 
     `args` is a list because some stage functions are curried/binary (`biter :
@@ -75,7 +76,7 @@ def build_and_time(judge, pdir: Path, env: dict, const_name: str, args: list,
     # caMix32 and the rest of the spec live in problems/<p>/Spec.lean, declared
     # as its own `Spec` lean_lib in the problem lakefile, so `import Spec` is
     # what makes spec-level micro-stages measurable with the same machinery.
-    imports = "import Submission\nimport Spec\n"
+    imports = "import Submission\nimport Spec\n" + extra_imports
     token = f"decomp_{const_name.replace('.', '_')}_{'_'.join(map(str, args))}_{value}"
     namespace = f"Decomp_{token}"
     theorem = f"{namespace}.check"
@@ -158,7 +159,11 @@ def main() -> int:
     ap.add_argument("--extra", action="append", default=[],
                     help="additional isolated stage as CONST:arg1[,arg2...] "
                          "(arg names must exist in Submission/Spec); repeatable")
+    ap.add_argument("--extra-import", action="append", default=[],
+                    help="extra module to import in the generated Perf/val "
+                         "files, e.g. for A/B harnesses; repeatable")
     args = ap.parse_args()
+    extra_imports = "".join(f"import {m}\n" for m in args.extra_import)
 
     judge = _load_judge()
     pdir = problem_dir(args.problem)
@@ -175,8 +180,8 @@ def main() -> int:
 
         # Resolve the per-stage arguments first, so the stage theorems are
         # exactly the sub-computations `impl` performs at this n.
-        mask = oracle(pdir, f"Submission.initBits {seed}", env)
-        full = oracle(pdir, f"Submission.impl {n}", env)
+        mask = oracle(pdir, f"Submission.initBits {seed}", env, extra_imports)
+        full = oracle(pdir, f"Submission.impl {n}", env, extra_imports)
         print(f"n={n} (steps={steps} seed={seed}) init_mask={mask} full={full}")
 
         results = []
@@ -186,7 +191,7 @@ def main() -> int:
         # its ARGUMENTS are the step count and the init mask, not the full
         # output. Timing `biter steps full` would measure a different (wrong)
         # computation.
-        steps_value = oracle(pdir, f"Submission.biter {steps} {mask}", env)
+        steps_value = oracle(pdir, f"Submission.biter {steps} {mask}", env, extra_imports)
         results.append(build_and_time(judge, pdir, env, "Submission.biter",
                                       [steps, mask], steps_value, "stepsOnly",
                                       args.reps) | {"value": steps_value})
@@ -201,10 +206,10 @@ def main() -> int:
             const, _, arglist = spec.partition(":")
             cargs = [int(a) for a in arglist.split(",") if a]
             cexpr = f"{const} " + " ".join(map(str, cargs))
-            cval = oracle(pdir, cexpr, env)
+            cval = oracle(pdir, cexpr, env, extra_imports)
             results.append(build_and_time(
                 judge, pdir, env, const, cargs, cval,
-                const.replace(".", "_")[:18], args.reps))
+                const.replace(".", "_")[:18], args.reps, extra_imports))
 
         base = res_full["median_wall_ns"] or 1
         print("=== official kernel-timer decomposition ===")
