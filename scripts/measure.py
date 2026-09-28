@@ -334,6 +334,7 @@ def main() -> int:
     if args.group_check:
         plan = grouped_plan(judge, args.problem)
         total = 0
+        total_instr = 0
         print(f"=== {args.problem}: official grouped plan, {len(plan)} slots "
               f"(curve_work = SUM of slot medians) ===")
         for case in plan:
@@ -341,11 +342,25 @@ def main() -> int:
             mw = res["median_wall_ns"]
             total += mw or 0
             steps = case["n"] >> 32
+            instr = res["instructions"]
+            if instr:
+                total_instr += instr
             print(f"  {case['group']} case {case['case']}: n={case['n']} "
                   f"(scale={steps}) median_wall={mw/1e6:.2f} ms "
                   f"peak_rss={res['peak_rss_kb']} KiB")
+            if instr:
+                lo, hi = res["instr_spread"]
+                print(f"      INSTRUCTIONS = {instr:,.0f} "
+                      f"(spread {lo:,}..{hi:,}, "
+                      f"{100.0*(hi-lo)/max(lo,1):.2f}% peak-to-peak) "
+                      f"[official metric, user-space]")
         print(f"  --- curve_work (sum of medians) = {total/1e6:.2f} ms "
               f"[wall_time proxy, NOT instructions] ---")
+        if total_instr:
+            print(f"  --- curve_work_INSTRUCTIONS (sum) = {total_instr:,.0f} "
+                  f"[official metric] ---")
+        else:
+            print("  --- curve_work_INSTRUCTIONS = None (no icount built) ---")
         return 0
 
     if args.packed_n is None:
