@@ -66,6 +66,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 TIMER = Path(os.environ.get(
     "TIMER_BIN", ROOT / "evaluation/judge/timer-kernel/.lake/build/bin/kernel"))
+# Optional instruction counter. Built from scripts/icount.c; see that file for why
+# the judge's own metric is reproducible locally despite there being no `perf`
+# binary. Absent => the run falls back to the (noisy) wall_time proxy.
+ICOUNT = Path(os.environ.get("ICOUNT_BIN", ROOT / ".verify" / "icount"))
 LEAN4EXPORT = Path(os.environ.get(
     "LEAN4EXPORT_BIN", ROOT.parent / "repro/lean4export/.lake/build/bin/lean4export"))
 TIMER_PREFIX = "KERNEL_TIMING="
@@ -207,10 +211,21 @@ def build_and_export(judge, pdir: Path, n: int, value: str, env: dict, work: Pat
 
 
 def replay(pdir: Path, export: Path, theorem: str, reps: int) -> dict:
-    """Run the official timer at the official target boundary, N times."""
-    samples, walls, rss = [], [], []
+    """Run the official timer at the official target boundary, N times.
+
+    When the `icount` helper is present the timer runs UNDER the instruction
+    counter, so the result carries the judge's own metric
+    (PERF_COUNT_HW_INSTRUCTIONS) instead of the wall_time stand-in. That number
+    is deterministic, which matters because the wall_time proxy on this host
+    swings ~40% peak-to-peak between identical replays and therefore cannot
+    rank candidate variants at all.
+    """
+    samples, walls, rss, instrs = [], [], [], []
+    use_icount = ICOUNT.exists()
     for _ in range(reps):
-        rc, out = run([str(TIMER), "--target", theorem, str(export)], pdir, None)
+        cmd = ([str(ICOUNT)] if use_icount else []) + \
+              [str(TIMER), "--target", theorem, str(export)]
+        rc, out = run(cmd, pdir, None)
         records = [ln[len(TIMER_PREFIX):] for ln in out.splitlines()
                    if ln.startswith(TIMER_PREFIX)]
         if rc != 0 or len(records) != 1:
@@ -218,6 +233,9 @@ def replay(pdir: Path, export: Path, theorem: str, reps: int) -> dict:
         data = json.loads(records[0])
         if data.get("phase") != "complete":
             raise SystemExit(f"timer did not complete: {data.get('phase')!r}")
+        m = re.search(r"INSTR_TOTAL=(\d+)", out)
+        if m:
+            instrs.append(int(m.group(1)))
         samples.append(data)
         if type(data.get("wall_ns")) is int and data["wall_ns"] > 0:
             walls.append(data["wall_ns"])
@@ -227,7 +245,8 @@ def replay(pdir: Path, export: Path, theorem: str, reps: int) -> dict:
         "samples": samples,
         "median_wall_ns": statistics.median(walls) if walls else None,
         "peak_rss_kb": max(rss) if rss else None,
-        "instructions": samples[0].get("instructions"),
+        "instructions": statistics.median(instrs) if instrs else None,
+        "instr_spread": ((min(instrs), max(instrs)) if instrs else None),
     }
 
 
@@ -305,8 +324,20 @@ def main() -> int:
     print(f"  median_wall_ns = {res['median_wall_ns']} "
           f"({res['median_wall_ns']/1e6:.2f} ms)  [wall_time proxy]")
     print(f"  peak_rss_kb   = {res['peak_rss_kb']}")
-    print(f"  instructions  = {res['instructions']} "
-          f"(None => timer in wall_time mode; no PMU on this host)")
+    if res["instructions"]:
+        lo, hi = res["instr_spread"]
+        print(f"  INSTRUCTIONS  = {res['instructions']:,.0f}  "
+              f"(spread {lo:,}..{hi:,}, {100.0*(hi-lo)/max(lo,1):.2f}% "
+              f"peak-to-peak)  [official metric, user-space]")
+    else:
+        print("  instructions  = None (no icount built; wall_time proxy only)")
+    walls = sorted(s["wall_ns"] for s in res["samples"]
+                   if type(s.get("wall_ns")) is int and s["wall_ns"] > 0)
+    if walls:
+        spread = 100.0 * (walls[-1] - walls[0]) / walls[0]
+        print(f"  wall spread   = {walls[0]/1e6:.2f}..{walls[-1]/1e6:.2f} ms "
+              f"({spread:.1f}% peak-to-peak over {len(walls)} reps) -- "
+              f"NOISY, do not rank variants on this")
     return 0
 
 
