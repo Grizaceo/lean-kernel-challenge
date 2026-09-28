@@ -179,9 +179,20 @@ def oracle_value(judge, pdir: Path, n: int, env: dict) -> str:
     return m.group(1)
 
 
-def build_and_export(judge, pdir: Path, n: int, value: str, env: dict, work: Path):
-    """Compile the generated `impl n = v` theorem and export it for the timer."""
+def build_and_export(judge, pdir: Path, n: int, value: str, env: dict, work: Path,
+                     max_rec_depth: int | None = None):
+    """Compile the generated `impl n = v` theorem and export it for the timer.
+
+    `max_rec_depth` overrides the judge's `maxRecDepth 4000000`. The kernel's
+    defeq check gives up past that limit and reports a type MISMATCH rather
+    than a depth error, so a correct, fast candidate can look broken. Only
+    override this to find out how deep a candidate needs; the judge itself
+    always uses its own value.
+    """
     source, theorem = judge._perf_theorem_source(n, value, work.name)
+    if max_rec_depth is not None:
+        source = source.replace("maxRecDepth 4000000",
+                                f"maxRecDepth {max_rec_depth}")
     (pdir / "Perf.lean").write_text(source)
     olean = pdir / ".lake" / "build" / "lib" / "lean" / "Perf.olean"
     if olean.exists():
