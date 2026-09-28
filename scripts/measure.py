@@ -195,13 +195,22 @@ def build_and_export(judge, pdir: Path, n: int, value: str, env: dict, work: Pat
     # capturing it via run()'s text return and re-writing would also work but
     # is an extra copy of a multi-MB payload.
     artifact_lib = pdir / ".lake" / "build" / "lib" / "lean"
+    # Dependency lib dirs, if any. ca-rule110 is self-contained and needs
+    # none, but every Mathlib-backed problem (fib, mertens, primecount, ...)
+    # fails with "unknown module prefix 'Mathlib'" without them -- the export
+    # has to resolve the same transitive closures the build did. Sorted so the
+    # path is reproducible.
+    pkg_libs = sorted(
+        d for d in (pdir / ".lake" / "packages").glob("*/.lake/build/lib/lean")
+        if d.is_dir()
+    )
+    lean_path = os.pathsep.join([str(artifact_lib), *(str(d) for d in pkg_libs),
+                                 str(Path.home() / ".elan/toolchains/"
+                                     "leanprover--lean4---v4.33.1/lib/lean")])
     with export.open("wb") as fh:
         proc = subprocess.run(
             [str(LEAN4EXPORT), "Perf", "--", theorem], cwd=pdir,
-            env={**env, "LEAN_PATH": os.pathsep.join((
-                str(artifact_lib),
-                str(Path.home() / ".elan/toolchains/"
-                    "leanprover--lean4---v4.33.1/lib/lean")))},
+            env={**env, "LEAN_PATH": lean_path},
             stdout=fh, stderr=subprocess.PIPE, text=True, timeout=1800)
     rc, out = proc.returncode, (proc.stderr or "")
     (pdir / "Perf.lean").unlink(missing_ok=True)
