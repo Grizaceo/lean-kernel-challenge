@@ -67,3 +67,5 @@ prebuilt-tools/
 # candidate scratch modules (never uploaded; the candidate is always Submission.lean)
 candidates/*/Finder.lean
 candidates/*/Work.lean
+
+*.olean
