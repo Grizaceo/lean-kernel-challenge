@@ -271,5 +271,64 @@ theorem nthNat_updRowAdd_T (d : Nat) (hd : 0 < d) (t : List Nat) (m : Nat)
     Submission.nthNat (Submission.updRowAdd d t) m
       = T d (Submission.nthNat t) m :=
   nthNat_updRowAdd_eq_msum d hd t m hm
+/-- Iterating the invariant over the whole size list: if the table satisfies
+`Inv k` then applying the row step of size `k+1` gives `Inv (k+1)`. The list
+`succRange (k+1)` puts that step in front, so `coin_congr` and `coin_cons`
+chain the steps in increasing order — the order `inv_step` needs. -/
+theorem inv_coin (n : Nat) (len : Nat) (f : Nat → Nat) (h : Inv 0 len f) :
+    Inv n len (coin (succRange n) f) := by
+  induction n with
+  | zero =>
+    -- no steps: the table is unchanged, and the base invariant is exactly Inv 0
+    intro m hm
+    exact h m hm
+  | succ n ih =>
+    -- `coin (succRange (n+1)) f = T (n+1) (coin (succRange n)) f`; apply the
+    -- inductive hypothesis to get `Inv n` on the inner composition, then one
+    -- `inv_step` to advance it to `Inv (n+1)`.
+    -- `len` and `f` are fixed, so the induction on `n` leaves both untouched
+    have hinner : Inv n len (coin (succRange n) f) := ih
+    have hcol : (fun m => coin (succRange (n + 1)) f m)
+        = T (n + 1) (coin (succRange n) f) := by
+      funext m
+      exact coin_succRange n f m
+    have hfinal := inv_step n len (coin (succRange n) f) hinner
+    -- rewrite the column function from `T (n+1) ∘ coin` to `coin (succRange (n+1))`
+    intro m hm
+    have := hfinal m hm
+    rwa [← hcol] at this
+/-- The implementation computes `p(n)` for every `n`.
+
+Three facts are chained:
+  * `inv_init` puts the initial table in the `Inv 0` regime;
+  * `inv_coin` carries that through all `n` row steps to `Inv n`, so column
+    `m` reads `partAux n m` — the spec's value;
+  * `itAdd_coin` identifies the actual streaming loop with `coin (succRange n)`.
+
+The column read is `n`, and `initTable n` has length `n + 1`, so `n` is in
+range. The result is `partAux n n`, which is `partitionSpec n`. -/
+theorem impl_correct (n : Nat) :
+    Submission.impl n = partitionSpec n := by
+  unfold Submission.impl partitionSpec
+  -- the initial table is in the `Inv 0` regime
+  have h0 := inv_init n
+  -- after all n row steps, the column function reads `partAux n`
+  have hn := inv_coin n (Submission.initTable n).length
+    (Submission.nthNat (Submission.initTable n)) h0
+  -- the streaming loop computes that same column function
+  have hit := itAdd_coin n (Submission.initTable n) n (by
+    simp [Submission.initTable])
+  -- column `n` is in range (the table has length `n + 1`) and is not `0`
+  have hlen : n < (Submission.initTable n).length := by
+    simp [Submission.initTable]
+  have hcol := hn n hlen
+  rw [hit, hcol]
+  -- column `n` is never column `0` (except at n = 0, where `partAux 0 0 = 1`
+  -- anyway), so the `if` collapses to `partAux n n`
+  split
+  · rename_i h
+    subst h
+    exact partAux_zero 0 |>.symm
+  · rfl
 
 end Probe
