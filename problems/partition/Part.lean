@@ -12,6 +12,14 @@ import Coin
 
 namespace Probe
 
+/-- The sizes `k, k-1, …, 1`, in the order `itAdd` applies them. -/
+def succRange : Nat → List Nat
+  | 0 => []
+  | k + 1 => (k + 1) :: succRange k
+
+theorem succRange_succ (k : Nat) :
+    succRange (k + 1) = (k + 1) :: succRange k := rfl
+
 /-! ## Tying the streaming rows to `partAux`
 
 `itAdd` applies the row steps in *decreasing* part size: `itAdd (k+1) t` is
@@ -137,5 +145,131 @@ theorem inv_step (k : Nat) (len : Nat) (f : Nat → Nat) (h : Inv k len f) :
       exact (partAux_zero k).symm
     · rw [if_neg hzero] at hc
       exact hc
+
+/-- `succRange (k+1)` is `k+1` in front of `succRange k`, and the same list
+written in the other order. Only the front-cons form is ever used. -/
+theorem succRange_cons (k : Nat) :
+    (k + 1) :: succRange k = succRange (k + 1) := succRange_succ k
+
+/-- `succRange (k+1)` is the size-`k+1` step in front of the smaller ones.
+This is definitional, and it is the form `coin` peels with `coin_cons`. -/
+theorem coin_succRange (k : Nat) (f : Nat → Nat) :
+    ∀ m, coin (succRange (k + 1)) f m = T (k + 1) (coin (succRange k) f) m := by
+  intro m
+  rw [succRange_succ, coin_cons]
+
+/-- Every size in `succRange k` is positive: the list holds `k, k-1, …, 1`,
+all successors. -/
+theorem succRange_pos (k : Nat) : ∀ y ∈ succRange k, 0 < y := by
+  induction k with
+  | zero =>
+    intro y hy
+    cases hy
+  | succ k ih =>
+    intro y hy
+    rw [succRange_succ, List.mem_cons] at hy
+    rcases hy with h | hy
+    · have hpos : 0 < k + 1 := Nat.succ_pos k
+      rw [h]
+      exact hpos
+    · exact ih y hy
+
+/-- A step of size `x` applied *after* the steps in `ds` is the same operator
+as that step applied *before* them — the two differ only in where the step sits
+in the list. This is the pointwise form of the commutation in `Coin.lean`, and
+it is what lets a step be moved to the front of the list. -/
+theorem coin_step (ds : List Nat) (x : Nat) (f : Nat → Nat) :
+    ∀ m, coin ds (T x f) m = coin (ds ++ [x]) f m := by
+  induction ds with
+  | nil =>
+    intro m
+    rfl
+  | cons d ds ih =>
+    intro m
+    rw [coin_cons, List.cons_append]
+    -- both sides are `T d` applied at column `m`, and the IH says the two
+    -- arguments agree at *every* column, so they agree as functions
+    have h := ih
+    have hfun : coin ds (T x f) = coin (ds ++ [x]) f := by
+      funext c
+      exact h c
+    rw [hfun, coin_cons]
+
+/-- `coin ds f` only ever reads `f` at columns *at or below* its own argument:
+the head sums `f (c - j*d)` over `j`, and each such index is `≤ c`; the tail is
+read at `c` itself. So agreement on columns `< n` propagates through `coin` on
+columns `< n`.
+
+This is the reason the whole proof can be stated on column-reading functions
+instead of on lists: nothing downstream ever looks at a column above the one
+it was asked about, so the list's length only has to cover the queried column. -/
+theorem coin_congr (ds : List Nat) {f g : Nat → Nat} {n : Nat}
+    (h : ∀ c, c < n → f c = g c) :
+    ∀ c, c < n → coin ds f c = coin ds g c := by
+  induction ds with
+  | nil =>
+    intro c hc
+    exact h c hc
+  | cons d ds ih =>
+    intro c hc
+    rw [coin_cons]
+    unfold T
+    refine msum_congr _ ?_
+    intro j _
+    have hle : c - j * d ≤ c := Nat.sub_le _ _
+    have hlt : c - j * d < n := by omega
+    exact ih (c - j * d) hlt
+
+/-- `itAdd k t` applies the row steps of sizes `k, k-1, …, 1`, and `coin`
+applied to that list computes the same column-reading function.
+
+The statement is pointwise and bounded by `m < t.length`. That is not a
+restriction: `nthNat` reads 0 past the end, but `T` does not, so the two
+functions genuinely differ outside the range and only agree inside it. -/
+theorem itAdd_coin (k : Nat) (t : List Nat) (m : Nat) (hm : m < t.length) :
+    Submission.nthNat (Submission.itAdd k t) m
+      = coin (succRange k) (Submission.nthNat t) m := by
+  induction k generalizing t with
+  | zero =>
+    rfl
+  | succ k ih =>
+    -- `itAdd (k+1) t = itAdd k (updRowAdd (k+1) t)`, and the step preserves the
+    -- length, so the queried column stays in range for the k remaining steps
+    have hlen : m < (Submission.updRowAdd (k + 1) t).length := by
+      rw [Probe2.length_updRowAdd (k + 1) t (Nat.succ_pos k)]
+      exact hm
+    rw [Submission.itAdd, ih _ hlen]
+    -- substitute the stepped table's column function with `T (k+1)` of the
+    -- original; `coin_congr` propagates the pointwise equality through `coin`,
+    -- which only ever reads columns at or below the one it is asked for
+    have hcol : ∀ c, c < t.length →
+        Submission.nthNat (Submission.updRowAdd (k + 1) t) c
+          = T (k + 1) (Submission.nthNat t) c := by
+      intro c hc
+      have hmsum := nthNat_updRowAdd_eq_msum (k + 1) (Nat.succ_pos k) t c hc
+      show Submission.nthNat (Submission.updRowAdd (k + 1) t) c
+        = T (k + 1) (Submission.nthNat t) c
+      unfold T
+      exact hmsum
+    rw [succRange_succ, coin_cons]
+    rw [coin_congr (succRange k) hcol m hm]
+    -- move the size-(k+1) step to the front of the list: the operator is
+    -- unchanged, and `coin_append` then peels it off. This is the commutation
+    -- result from `Coin.lean`, and it is the one place where the
+    -- implementation's decreasing iteration order is reconciled with the
+    -- spec's increasing recurrence.
+    rw [coin_step]
+    exact (coin_append (succRange k) (succRange_pos k) (k + 1) (Nat.succ_pos k)
+      (Submission.nthNat t)) m
+
+/-- A row step of size `d` on the table is, on the column-reading function,
+exactly the operator `T d`. This is the pointwise form of
+`nthNat_updRowAdd_eq_msum`, and it is what lets the invariant be stated on
+functions instead of on lists. -/
+theorem nthNat_updRowAdd_T (d : Nat) (hd : 0 < d) (t : List Nat) (m : Nat)
+    (hm : m < t.length) :
+    Submission.nthNat (Submission.updRowAdd d t) m
+      = T d (Submission.nthNat t) m :=
+  nthNat_updRowAdd_eq_msum d hd t m hm
 
 end Probe
