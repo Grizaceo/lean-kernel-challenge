@@ -1,0 +1,462 @@
+{
+ "Nat.add@64": {
+  "total": 162379903,
+  "parse_only": 162372145,
+  "replay_minus_parse": 7758,
+  "raw": [
+   162233684,
+   162382855,
+   162379903
+  ]
+ },
+ "Nat.add@1000": {
+  "total": 162382369,
+  "parse_only": 162372263,
+  "replay_minus_parse": 10106,
+  "raw": [
+   161082553,
+   162382942,
+   162382369
+  ]
+ },
+ "Nat.add@10000": {
+  "total": 162380129,
+  "parse_only": 162371280,
+  "replay_minus_parse": 8849,
+  "raw": [
+   156633338,
+   162381947,
+   162380129
+  ]
+ },
+ "Nat.add@100000": {
+  "total": 162379416,
+  "parse_only": 162371514,
+  "replay_minus_parse": 7902,
+  "raw": [
+   151477538,
+   162383023,
+   162379416
+  ]
+ },
+ "Nat.mul@64": {
+  "error": "build: F2Probe.lean:6:25: error: unexpected token '//'; expected ')', ',' or ':'\nF2Probe.lean:7:25: error: unexpected token '//'; expected ')', ',' or ':'\nF2Probe.lean:9:30: error: unexpected token '//'; expected ')', ',' or ':'\n"
+ },
+ "Nat.mul@1000": {
+  "error": "build: F2Probe.lean:6:27: error: unexpected token '//'; expected ')', ',' or ':'\nF2Probe.lean:7:27: error: unexpected token '//'; expected ')', ',' or ':'\nF2Probe.lean:9:32: error: unexpected token '//'; expected ')', ',' or ':'\n"
+ },
+ "Nat.mul@10000": {
+  "error": "build: F2Probe.lean:6:28: error: unexpected token '//'; expected ')', ',' or ':'\nF2Probe.lean:7:28: error: unexpected token '//'; expected ')', ',' or ':'\nF2Probe.lean:9:33: error: unexpected token '//'; expected ')', ',' or ':'\n"
+ },
+ "Nat.mul@100000": {
+  "error": "build: F2Probe.lean:6:29: error: unexpected token '//'; expected ')', ',' or ':'\nF2Probe.lean:7:29: error: unexpected token '//'; expected ')', ',' or ':'\nF2Probe.lean:9:34: error: unexpected token '//'; expected ')', ',' or ':'\n"
+ },
+ "Nat.div@64": {
+  "error": "build: F2Probe.lean:7:25: error: unexpected token '//'; expected ')', ',' or ':'\nF2Probe.lean:9:41: error: unexpected token '//'; expected ')', ',' or ':'\n"
+ },
+ "Nat.div@1000": {
+  "error": "build: F2Probe.lean:7:27: error: unexpected token '//'; expected ')', ',' or ':'\nF2Probe.lean:9:45: error: unexpected token '//'; expected ')', ',' or ':'\n"
+ },
+ "Nat.div@10000": {
+  "error": "build: F2Probe.lean:7:28: error: unexpected token '//'; expected ')', ',' or ':'\nF2Probe.lean:9:47: error: unexpected token '//'; expected ')', ',' or ':'\n"
+ },
+ "Nat.div@100000": {
+  "error": "build: F2Probe.lean:7:29: error: unexpected token '//'; expected ')', ',' or ':'\nF2Probe.lean:9:49: error: unexpected token '//'; expected ')', ',' or ':'\n"
+ },
+ "Nat.mod@64": {
+  "error": "build: F2Probe.lean:7:25: error: unexpected token '//'; expected ')', ',' or ':'\nF2Probe.lean:9:45: error: unexpected token '//'; expected ')', ',' or ':'\n"
+ },
+ "Nat.mod@1000": {
+  "error": "build: F2Probe.lean:7:27: error: unexpected token '//'; expected ')', ',' or ':'\nF2Probe.lean:9:49: error: unexpected token '//'; expected ')', ',' or ':'\n"
+ },
+ "Nat.mod@10000": {
+  "error": "build: F2Probe.lean:7:28: error: unexpected token '//'; expected ')', ',' or ':'\nF2Probe.lean:9:51: error: unexpected token '//'; expected ')', ',' or ':'\n"
+ },
+ "Nat.mod@100000": {
+  "error": "build: F2Probe.lean:7:29: error: unexpected token '//'; expected ')', ',' or ':'\nF2Probe.lean:9:53: error: unexpected token '//'; expected ')', ',' or ':'\n"
+ },
+ "Nat.gcd@64": {
+  "error": "build: F2Probe.lean:7:25: error: unexpected token '//'; expected ')', ',' or ':'\nF2Probe.lean:9:45: error: unexpected token '//'; expected ')', ',' or ':'\n"
+ },
+ "Nat.gcd@1000": {
+  "error": "build: F2Probe.lean:7:27: error: unexpected token '//'; expected ')', ',' or ':'\nF2Probe.lean:9:49: error: unexpected token '//'; expected ')', ',' or ':'\n"
+ },
+ "Nat.gcd@10000": {
+  "error": "build: F2Probe.lean:7:28: error: unexpected token '//'; expected ')', ',' or ':'\nF2Probe.lean:9:51: error: unexpected token '//'; expected ')', ',' or ':'\n"
+ },
+ "Nat.gcd@100000": {
+  "error": "build: F2Probe.lean:7:29: error: unexpected token '//'; expected ')', ',' or ':'\nF2Probe.lean:9:53: error: unexpected token '//'; expected ')', ',' or ':'\n"
+ },
+ "Nat.land@64": {
+  "total": 162379422,
+  "parse_only": 162372761,
+  "replay_minus_parse": 6661,
+  "raw": [
+   153420166,
+   162382864,
+   162379422
+  ]
+ },
+ "Nat.land@1000": {
+  "total": 162381676,
+  "parse_only": 162375012,
+  "replay_minus_parse": 6664,
+  "raw": [
+   162382244,
+   162381676,
+   162378527
+  ]
+ },
+ "Nat.land@10000": {
+  "total": 162378483,
+  "parse_only": 162371361,
+  "replay_minus_parse": 7122,
+  "raw": [
+   144791983,
+   162379070,
+   162378483
+  ]
+ },
+ "Nat.land@100000": {
+  "total": 162379189,
+  "parse_only": 162371320,
+  "replay_minus_parse": 7869,
+  "raw": [
+   115558280,
+   162379189,
+   162379373
+  ]
+ },
+ "Nat.lor@64": {
+  "total": 162380094,
+  "parse_only": 162374152,
+  "replay_minus_parse": 5942,
+  "raw": [
+   162380094,
+   162381954,
+   162379068
+  ]
+ },
+ "Nat.lor@1000": {
+  "total": 162383151,
+  "parse_only": 162372278,
+  "replay_minus_parse": 10873,
+  "raw": [
+   142108921,
+   162383151,
+   162383272
+  ]
+ },
+ "Nat.lor@10000": {
+  "total": 162381960,
+  "parse_only": 162371258,
+  "replay_minus_parse": 10702,
+  "raw": [
+   138907899,
+   162383163,
+   162381960
+  ]
+ },
+ "Nat.lor@100000": {
+  "total": 162381791,
+  "parse_only": 162374234,
+  "replay_minus_parse": 7557,
+  "raw": [
+   142770035,
+   162383374,
+   162381791
+  ]
+ },
+ "Nat.xor@64": {
+  "total": 162381848,
+  "parse_only": 162371490,
+  "replay_minus_parse": 10358,
+  "raw": [
+   162379976,
+   162382197,
+   162381848
+  ]
+ },
+ "Nat.xor@1000": {
+  "total": 162380029,
+  "parse_only": 162371588,
+  "replay_minus_parse": 8441,
+  "raw": [
+   153476455,
+   162380029,
+   162381581
+  ]
+ },
+ "Nat.xor@10000": {
+  "total": 162382297,
+  "parse_only": 162372627,
+  "replay_minus_parse": 9670,
+  "raw": [
+   129706592,
+   162382297,
+   162382829
+  ]
+ },
+ "Nat.xor@100000": {
+  "total": 162382069,
+  "parse_only": 162374067,
+  "replay_minus_parse": 8002,
+  "raw": [
+   151114274,
+   162382069,
+   162383229
+  ]
+ },
+ "Nat.shiftLeft@64": {
+  "total": 162379287,
+  "parse_only": 162371628,
+  "replay_minus_parse": 7659,
+  "raw": [
+   162380170,
+   162379166,
+   162379287
+  ]
+ },
+ "Nat.shiftLeft@1000": {
+  "total": 162379231,
+  "parse_only": 162374479,
+  "replay_minus_parse": 4752,
+  "raw": [
+   154051907,
+   162379231,
+   162379495
+  ]
+ },
+ "Nat.shiftLeft@10000": {
+  "total": 162379457,
+  "parse_only": 162372650,
+  "replay_minus_parse": 6807,
+  "raw": [
+   110715433,
+   162382279,
+   162379457
+  ]
+ },
+ "Nat.shiftLeft@100000": {
+  "total": 162379563,
+  "parse_only": 162371875,
+  "replay_minus_parse": 7688,
+  "raw": [
+   136326519,
+   162379563,
+   162382393
+  ]
+ },
+ "Nat.shiftRight@64": {
+  "total": 162379740,
+  "parse_only": 162374517,
+  "replay_minus_parse": 5223,
+  "raw": [
+   162379200,
+   162382403,
+   162379740
+  ]
+ },
+ "Nat.shiftRight@1000": {
+  "total": 162379132,
+  "parse_only": 162372534,
+  "replay_minus_parse": 6598,
+  "raw": [
+   150825437,
+   162379132,
+   162383044
+  ]
+ },
+ "Nat.shiftRight@10000": {
+  "total": 162382035,
+  "parse_only": 162371855,
+  "replay_minus_parse": 10180,
+  "raw": [
+   150885724,
+   162382153,
+   162382035
+  ]
+ },
+ "Nat.shiftRight@100000": {
+  "total": 162381491,
+  "parse_only": 162373871,
+  "replay_minus_parse": 7620,
+  "raw": [
+   121280499,
+   162381496,
+   162381491
+  ]
+ },
+ "Nat.pow@64": {
+  "total": 162382697,
+  "parse_only": 162371474,
+  "replay_minus_parse": 11223,
+  "raw": [
+   162382697,
+   162382341,
+   162383084
+  ]
+ },
+ "Nat.pow@1000": {
+  "total": 162381876,
+  "parse_only": 162371876,
+  "replay_minus_parse": 10000,
+  "raw": [
+   146867922,
+   162381876,
+   162382087
+  ]
+ },
+ "Nat.pow@10000": {
+  "total": 162379624,
+  "parse_only": 162371589,
+  "replay_minus_parse": 8035,
+  "raw": [
+   162379088,
+   162379624,
+   162383615
+  ]
+ },
+ "Nat.pow@100000": {
+  "total": 162379547,
+  "parse_only": 162372962,
+  "replay_minus_parse": 6585,
+  "raw": [
+   125099348,
+   162379744,
+   162379547
+  ]
+ },
+ "Nat.log2@64": {
+  "total": 162380289,
+  "parse_only": 162371714,
+  "replay_minus_parse": 8575,
+  "raw": [
+   162379497,
+   162382125,
+   162380289
+  ]
+ },
+ "Nat.log2@1000": {
+  "total": 162379215,
+  "parse_only": 162371981,
+  "replay_minus_parse": 7234,
+  "raw": [
+   128045059,
+   162382910,
+   162379215
+  ]
+ },
+ "Nat.log2@10000": {
+  "total": 162381223,
+  "parse_only": 162371781,
+  "replay_minus_parse": 9442,
+  "raw": [
+   125743637,
+   162382958,
+   162381223
+  ]
+ },
+ "Nat.log2@100000": {
+  "total": 162379988,
+  "parse_only": 162374115,
+  "replay_minus_parse": 5873,
+  "raw": [
+   157267308,
+   162380237,
+   162379988
+  ]
+ },
+ "Nat.beq@64": {
+  "total": 162381974,
+  "parse_only": 162371475,
+  "replay_minus_parse": 10499,
+  "raw": [
+   162381547,
+   162381974,
+   162382943
+  ]
+ },
+ "Nat.beq@1000": {
+  "total": 162379980,
+  "parse_only": 162372645,
+  "replay_minus_parse": 7335,
+  "raw": [
+   150458509,
+   162382020,
+   162379980
+  ]
+ },
+ "Nat.beq@10000": {
+  "total": 162379028,
+  "parse_only": 162375017,
+  "replay_minus_parse": 4011,
+  "raw": [
+   154193589,
+   162379028,
+   162382062
+  ]
+ },
+ "Nat.beq@100000": {
+  "total": 162382067,
+  "parse_only": 162371961,
+  "replay_minus_parse": 10106,
+  "raw": [
+   150825445,
+   162382943,
+   162382067
+  ]
+ },
+ "Nat.ble@64": {
+  "total": 162382865,
+  "parse_only": 162374421,
+  "replay_minus_parse": 8444,
+  "raw": [
+   162383130,
+   162382197,
+   162382865
+  ]
+ },
+ "Nat.ble@1000": {
+  "total": 162381940,
+  "parse_only": 162371633,
+  "replay_minus_parse": 10307,
+  "raw": [
+   71848144,
+   162381940,
+   162382040
+  ]
+ },
+ "Nat.ble@10000": {
+  "total": 162382693,
+  "parse_only": 162372600,
+  "replay_minus_parse": 10093,
+  "raw": [
+   162379021,
+   162382693,
+   162382961
+  ]
+ },
+ "Nat.ble@100000": {
+  "total": 162379004,
+  "parse_only": 162371811,
+  "replay_minus_parse": 7193,
+  "raw": [
+   114197666,
+   162379004,
+   162381804
+  ]
+ },
+ "Nat.testBit@64": {
+  "error": "build: F2Probe.lean:7:22: error: unexpected token '//'; expected ')', ',' or ':'\nF2Probe.lean:9:42: error: unexpected token '//'; expected ')', ',' or ':'\n"
+ },
+ "Nat.testBit@1000": {
+  "error": "build: F2Probe.lean:7:24: error: unexpected token '//'; expected ')', ',' or ':'\nF2Probe.lean:9:46: error: unexpected token '//'; expected ')', ',' or ':'\n"
+ },
+ "Nat.testBit@10000": {
+  "error": "build: F2Probe.lean:7:25: error: unexpected token '//'; expected ')', ',' or ':'\nF2Probe.lean:9:48: error: unexpected token '//'; expected ')', ',' or ':'\n"
+ },
+ "Nat.testBit@100000": {
+  "error": "build: F2Probe.lean:7:26: error: unexpected token '//'; expected ')', ',' or ':'\nF2Probe.lean:9:50: error: unexpected token '//'; expected ')', ',' or ':'\n"
+ }
+}
