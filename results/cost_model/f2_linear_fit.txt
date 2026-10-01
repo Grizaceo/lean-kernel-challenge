@@ -1,0 +1,44 @@
+F2 kernel cost model -- 2026-09-30
+
+metric: instructions inside KERNEL_TIMING, boundary=target-declaration-replay-v1
+        (the judge scores this exact window; user-space scope locally)
+
+H1  c(bits) = alpha + beta*bits           (linear in bit-width)
+H1b c(words) = alpha + gamma*ceil(bits/64)  (steps at the 64-bit word boundary)
+
+op                 alpha   beta/bit  resid%       alpha  gamma/word  resid%
+Nat.add          232,175      155.3    2.39     227,488      11,204    3.77
+Nat.mul          207,827       96.8    2.16     206,219       5,931    3.02
+Nat.sub          232,377       83.7    1.33     229,796       6,084    2.10
+Nat.xor          245,848       74.2    1.19     243,752       5,240    1.82
+Nat.land         182,141       40.2    0.82     180,934       2,893    1.30
+Nat.lor          182,561       40.2    0.78     181,243       2,983    1.27
+Nat.shiftLeft    207,196      107.5    2.20     204,324       7,459    3.25
+
+VERDICTS (criteria fixed in scripts/f2_cost_model.py before measuring)
+  F1 abort-on-failed-cell : NOT TRIGGERED, 28/28 cells valid
+  F2 spread               : worst 0.72%  (threshold 5%) -> PASS
+  F3 H2 slope separation  : beta spans 40..155 instr/bit, ratio 3.9x,
+                            vs instrument 0.72% -> the ops differ far beyond the instrument -> H2 NOT rejected
+  F4 H1 residual          : worst 2.39% (threshold 5%) -> H1 NOT rejected.
+  model comparison        : H1 (linear in bits) preferred; 0/7 ops favour the word-step model
+                            (mean resid 1.55% vs 2.36%).
+
+  NEITHER MODEL IS ADOPTED AS THE COST LAW. Four points (16/32/64/128)
+  cannot separate linear-in-bits from a threshold: the word model collapses
+  16/32/64 into one x-value, so it has no leverage to test the 32->64 jump
+  that dominates the data. The dense sweep (f2_threshold_sweep.py) settles
+  it: the cost is a STEP at 63 bits, +6.0%, and flat above and below it.
+  Read this table as the per-operation PLATEAU costs and the op ranking,
+  not as evidence for a per-bit rate.
+
+READING THE MODEL
+  Fixed cost per replayed declaration : ~182,486 instructions
+  Arithmetic attributable to the payload: up to ~71,747 instructions
+  Process-wide icount for the same run  : ~171,874,343 instructions
+
+  => The payload is a small minority of a single theorem replay. What costs
+     time in a slot is the NUMBER of declarations replayed, not their size.
+     This is the number that matters for the competition: the leaders at
+     62..90 us/slot are paying ~180k instructions per theorem, whatever the
+     theorem's own arithmetic.

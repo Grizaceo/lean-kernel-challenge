@@ -1,0 +1,66 @@
+F2b dense sweep -- Nat.add, 30/30 widths valid, 3 reps
+
+metric: in-window instructions (KERNEL_TIMING, target-declaration-replay-v1)
+
+bits        value
+    4       234,374
+    8       233,679
+   12       234,276
+   16       233,756
+   20       234,653
+   24       234,177
+   28       234,619
+   31       234,838
+   32       234,754
+   33       234,182
+   36       234,322
+   40       234,124
+   44       234,048
+   48       234,795
+   52       234,256
+   56       233,583
+   60       234,374
+   61       234,011
+   62       234,149
+   63       241,691
+   64       248,015
+   65       248,232
+   68       248,167
+   72       248,504
+   80       248,459
+   96       248,855
+  112       248,291
+  128       249,204
+  192       247,827
+  256       248,368
+
+instrument (worst within-cell spread): 0.43%
+F1 monotonicity has 1 violation(s): [(128, 192, -0.553)]
+largest single-step increase: 7,542 instructions between 62 and 63 bits
+
+LOWER PLATEAU  (bits < 63): median 234,256, internal spread 0.54%  (19 widths)
+TRANSITION     (bits = 63): 241,691
+UPPER PLATEAU  (bits > 63): median 248,330, internal spread 0.55%  (10 widths)
+STEP COST: 14,074 instructions (+6.01%)
+
+INTERPRETATION, stated as what the data support:
+  1. The cost is a STEP FUNCTION of bit-width, not linear. Payload size
+     buys nothing below 63 bits: the lower plateau spans
+     19 widths from 4 to 62 bits and moves 0.54%, i.e. within the 0.43% instrument.
+  2. The step sits at 63 bits: 62 bits costs 234,149, 63 costs 241,691 (+3.17% vs the lower plateau), and 64 costs
+     248,015. That is exactly where a Nat stops fitting
+     the kernel's single machine word and must be carried as a digit array.
+     The sweep locates the crossing to within one bit and does NOT by
+     itself prove the mechanism.
+  3. Above the step the curve is flat to within 1.3x the instrument
+     (0.55% over 10 widths, 0.43% instrument), so a
+     residual per-bit marginal cost is at most of that order and is NOT
+     resolved by this sweep. The four-point table's apparent
+     147 instr/bit was the 63-bit step
+     smeared across a linear fit, not a rate.
+
+CONSEQUENCE FOR THE COMPETITION COST MODEL
+  Payload width is a near-irrelevant lever. The only width decision that
+  matters is staying under 63 bits, worth 6.0% of a single
+  theorem replay. Everything else that costs time is the number of
+  theorem declarations replayed, each paying the full plateau cost.
