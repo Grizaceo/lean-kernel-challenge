@@ -1,0 +1,97 @@
+{
+ "status": "ok",
+ "generated": "2026-10-05T02:55:56-0300",
+ "metric": "instructions from KERNEL_TIMING, boundary=target-declaration-replay-v1",
+ "instrument": {
+  "timer": "/home/gris96/.hermes/workspace/repos/SAIR/lean-kernel-challenge/.verify/timer-kernel-local/.lake/build/bin/kernel",
+  "reps": 3,
+  "harness": "identical to F8",
+  "api_note": "Lean.mkApp1 does not exist; used Lean.mkApp"
+ },
+ "references": {
+  "natadd_4bit": 208895,
+  "floor": 118230
+ },
+ "preregistered": {
+  "H9.1": "some arithmetic op costs materially less than Nat.add at 4 bits",
+  "H9.2": "structural arithmetic scales with step count, not GMP width",
+  "criteria": {
+   "G1": "abort on failed cell",
+   "G2": "spread > 5%",
+   "G3": "reject H9.1 if cheapest >= 0.95x Nat.add",
+   "G4": "document the mkApp fallback, never substitute silently",
+   "G5": "always report the cheapest arithmetic cell"
+  }
+ },
+ "verdicts": {
+  "H9.1": "REJECTED"
+ },
+ "cells": {
+  "A-succ-small": {
+   "note": "Nat.succ on 6 (structural, no GMP)",
+   "status": "ok",
+   "window_median": 207597,
+   "window_min": 207509,
+   "window_max": 207646,
+   "window_spread_pct": 0.066,
+   "vs_add": 0.9938,
+   "vs_floor": 1.7559,
+   "seconds": 2.03
+  },
+  "B-succ-large": {
+   "note": "Nat.succ on 100000 (still structural)",
+   "status": "ok",
+   "window_median": 207383,
+   "window_min": 207253,
+   "window_max": 207419,
+   "window_spread_pct": 0.08,
+   "vs_add": 0.9928,
+   "vs_floor": 1.7541,
+   "seconds": 1.96
+  },
+  "C-pred": {
+   "note": "Nat.pred on 9 (structural)",
+   "status": "ok",
+   "window_median": 273752,
+   "window_min": 273551,
+   "window_max": 273761,
+   "window_spread_pct": 0.077,
+   "vs_add": 1.3105,
+   "vs_floor": 2.3154,
+   "seconds": 2.08
+  },
+  "D-xor": {
+   "note": "Nat.xor on 4-bit patterns",
+   "status": "ok",
+   "window_median": 237850,
+   "window_min": 237732,
+   "window_max": 238599,
+   "window_spread_pct": 0.365,
+   "vs_add": 1.1386,
+   "vs_floor": 2.0118,
+   "seconds": 2.06
+  },
+  "E-add-small": {
+   "note": "Nat.add 1+1 (GMP, reference)",
+   "status": "ok",
+   "window_median": 206328,
+   "window_min": 205859,
+   "window_max": 206621,
+   "window_spread_pct": 0.369,
+   "vs_add": 0.9877,
+   "vs_floor": 1.7451,
+   "seconds": 1.91
+  },
+  "F-add-large": {
+   "note": "Nat.add on 2x 10^12 (GMP, wide)",
+   "status": "ok",
+   "window_median": 206408,
+   "window_min": 206078,
+   "window_max": 206767,
+   "window_spread_pct": 0.334,
+   "vs_add": 0.9881,
+   "vs_floor": 1.7458,
+   "seconds": 1.91
+  }
+ }
+}

@@ -1,0 +1,20 @@
+F9 -- structural vs GMP arithmetic (2026-10-05)
+
+reference: Nat.add 4-bit = 208,895   floor = 118,230
+API: Lean.mkApp1 does not exist -> Lean.mkApp used (G4 fallback, documented).
+
+cell              instructions    vs add   vs floor  what
+A-succ-small           207,597    0.994x     1.756x  Nat.succ on 6 (structural, no GMP)
+B-succ-large           207,383    0.993x     1.754x  Nat.succ on 100000 (still structural)
+C-pred                 273,752    1.310x     2.315x  Nat.pred on 9 (structural)
+D-xor                  237,850    1.139x     2.012x  Nat.xor on 4-bit patterns
+E-add-small            206,328    0.988x     1.745x  Nat.add 1+1 (GMP, reference)
+F-add-large            206,408    0.988x     1.746x  Nat.add on 2x 10^12 (GMP, wide)
+
+VERDICTS (pre-registered in scripts/f9_structural_arith.py)
+  G2 spread            : worst 0.37% (threshold 5%) -> PASS
+  G3 H9.1 cheaper arith: cheapest = E-add-small at 206,328 instr = 0.988x Nat.add (>= 0.95) -> H9.1 REJECTED, no cheaper arithmetic exists in this probe set
+  G4 fallback used     : mkApp (not mkApp1, which does not exist). Every cell above used the documented fallback; no cell silently substituted a different measurement.
+  G5 report cheapest   : E-add-small at 206,328 instr — this is the floor for ONE arithmetic step in this probe set, whatever H9.1 says
+
+wrote /home/gris96/.hermes/workspace/repos/SAIR/lean-kernel-challenge/results/cost_model/f9_structural_arith.json
