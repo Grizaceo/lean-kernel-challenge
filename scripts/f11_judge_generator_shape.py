@@ -106,8 +106,15 @@ G3_TOLERANCE = 0.05
 TRIVIALS = {
     "J-C-trivial": ("def impl : Nat → Nat := fun _ => 0", 5, "0",
                     "impl ignores its input, computes nothing"),
-    "J-C-const": ("def impl : Nat → Nat := 7", 5, "7",
-                  "impl IS a constant: no application, no recursor"),
+    # A `Nat -> Nat` constant has NO numeral literal: `def impl : Nat -> Nat := 7`
+    # fails with `failed to synthesize OfNat (Nat -> Nat) 7`, and a type ascription
+    # does not help. So "impl is a constant with no application at all" is not
+    # expressible in Lean. The closest measurable cell is a lambda that RETURNS a
+    # constant: it still applies, but it has no recursor and no arithmetic. The
+    # claim is relabelled rather than approximated -- an earlier draft of this
+    # cell asserted "no application at all", which would have been unmeasured.
+    "J-C-const": ("def impl : Nat → Nat := fun _ => 7", 5, "7",
+                  "impl returns a constant: no recursor, no arithmetic"),
     "J-A-recur": ("def impl : Nat → Nat\n"
                   "  | 0 => 0\n"
                   "  | n + 1 => impl n", 5, "0",
@@ -180,10 +187,14 @@ def main() -> int:
                 raise ProbeError(f"[build Perf] rc={rc}: {out[-600:]}")
 
             export = work / "export.out"
+            # `stdout=fh` is REQUIRED: lean4export writes the export to stdout, and
+            # `capture_output=True` would send it into a pipe instead, leaving a
+            # 0-byte file that G1 then correctly rejects. Same shape as
+            # `measure.build_and_export`; F2 lost a whole table to empty exports.
             with export.open("wb") as fh:
                 proc = subprocess.run(
                     [str(LEAN4EXPORT), "Perf", "--", theorem], cwd=pdir,
-                    capture_output=True, text=True, timeout=1800,
+                    stdout=fh, stderr=subprocess.PIPE, text=True, timeout=1800,
                     env={**os.environ, "LEAN_PATH": lean_path(pdir)})
             f2_harness.check_step("export", proc.returncode, proc.stderr or "")
             if export.stat().st_size <= 512:
@@ -270,10 +281,16 @@ def main() -> int:
         ctriv = ok["J-C-trivial"]["window_median"]
         crecur = ok["J-A-recur"]["window_median"]
         verdicts.append(
-            f"recursor price      : constant impl {cconst:,}; impl ignoring its input "
-            f"{ctriv:,} = {ctriv / cconst:.3f}x; Nat.rec version {crecur:,} = "
-            f"{crecur / cconst:.3f}x. The step from a constant to a recursor is the "
-            f"price of HAVING a recursor, paid once, not per unfold.")
+            f"recursor price      : constant-returning impl {cconst:,}; impl ignoring "
+            f"its input {ctriv:,} = {ctriv / cconst:.3f}x that; Nat.rec version "
+            f"{crecur:,} = {crecur / cconst:.3f}x. The step up to a recursor is the "
+            f"price of HAVING one, paid once -- and it is the single largest term in "
+            f"the whole cost model.")
+    verdicts.append(
+        f"unrepresentable      : a `Nat -> Nat` CONSTANT has no literal in Lean "
+        f"(`OfNat (Nat -> Nat) 7` does not exist), so 'impl applies nothing at all' "
+        f"is NOT measurable. J-C-const is a lambda returning a constant and is "
+        f"labelled that way; no cell is claimed beyond what it measures.")
     verdicts.append(
         f"G4 generator         : all four theorems came from judge._perf_theorem_source "
         f"and every source is recorded verbatim in this artifact. No substitute.")

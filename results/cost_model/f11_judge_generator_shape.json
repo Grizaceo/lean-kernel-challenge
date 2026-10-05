@@ -1,0 +1,123 @@
+{
+ "status": "ok",
+ "generated": "2026-10-05T05:57:04-0300",
+ "metric": "instructions from KERNEL_TIMING, boundary=target-declaration-replay-v1",
+ "instrument": {
+  "timer": "/home/gris96/.hermes/workspace/repos/SAIR/lean-kernel-challenge/.verify/timer-kernel-local/.lake/build/bin/kernel",
+  "reps": 3,
+  "scope": "user-space only (LK_EXCLUDE_KERNEL=1)",
+  "generator": "judge._perf_theorem_source, imported verbatim"
+ },
+ "references_not_inputs": {
+  "f10b_C0": 240006,
+  "f10b_A0": 356917,
+  "f10b_A_beta": 95398,
+  "f10b_B_beta": 122142,
+  "f7_intercept": 244590,
+  "f8_floor_wrong_shape": 118230,
+  "champion_slot": 238082,
+  "champion_total": 1428492
+ },
+ "preregistered": {
+  "H11.1": "F10b's floor is a probe artefact of the hand-built theorem",
+  "H11.2": "F10b's floor is real and consumes the champion's whole slot",
+  "criteria": {
+   "G1": "abort on failed cell",
+   "G2": "spread > 5% -> re-measure",
+   "G3": {
+    "reject_H11.1_if_agreement_within": 0.05,
+    "compared_on": [
+     "J-C-trivial vs f10b C@0",
+     "J-A-recur vs f10b A@0"
+    ]
+   },
+   "G4": "theorem must come from judge._perf_theorem_source",
+   "G5": "state user+kernel is a superset of user-space",
+   "G6": "a wrong oracle v must fail the build",
+   "G7": "restore problems/ byte-for-byte"
+  }
+ },
+ "verdicts": {
+  "H11.1": "NOT rejected"
+ },
+ "ratios_vs_f10b": {
+  "J-C-trivial": 0.8291959367682474,
+  "J-A-recur": 2.3761854997100165
+ },
+ "generator_sources": {
+  "J-C-trivial": "import Submission\nimport Lean\nset_option maxRecDepth 4000000\nset_option maxHeartbeats 0\nopen Lean Meta Elab in\nrun_meta do\n  let implC := Lean.mkConst ``Submission.impl\n  let lhs := Lean.mkApp implC (Lean.mkNatLit 5)\n  let out \u2190 whnf (\u2190 inferType implC).bindingBody!\n  let outIsInt := out.isConstOf ``Int\n  unless outIsInt || out.isConstOf ``Nat do\n    throwError \"unsupported impl output type {out}\"\n  let rhs := if outIsInt then Lean.mkApp (Lean.mkConst ``Int.ofNat) (Lean.mkNatLit 0) else Lean.mkNatLit 0\n  let ty \u2190 mkEq lhs rhs\n  let pf \u2190 mkEqRefl rhs\n  Lean.addDecl (.thmDecl {\n    name := `LeanKernelChallengeJudge.Generated_50b89c92eb153a9ce9b2139f.check,\n    levelParams := [],\n    type := ty,\n    value := pf })\n",
+  "J-C-const": "import Submission\nimport Lean\nset_option maxRecDepth 4000000\nset_option maxHeartbeats 0\nopen Lean Meta Elab in\nrun_meta do\n  let implC := Lean.mkConst ``Submission.impl\n  let lhs := Lean.mkApp implC (Lean.mkNatLit 5)\n  let out \u2190 whnf (\u2190 inferType implC).bindingBody!\n  let outIsInt := out.isConstOf ``Int\n  unless outIsInt || out.isConstOf ``Nat do\n    throwError \"unsupported impl output type {out}\"\n  let rhs := if outIsInt then Lean.mkApp (Lean.mkConst ``Int.ofNat) (Lean.mkNatLit 7) else Lean.mkNatLit 7\n  let ty \u2190 mkEq lhs rhs\n  let pf \u2190 mkEqRefl rhs\n  Lean.addDecl (.thmDecl {\n    name := `LeanKernelChallengeJudge.Generated_da8f0c04fb7c9e030085d38e.check,\n    levelParams := [],\n    type := ty,\n    value := pf })\n",
+  "J-A-recur": "import Submission\nimport Lean\nset_option maxRecDepth 4000000\nset_option maxHeartbeats 0\nopen Lean Meta Elab in\nrun_meta do\n  let implC := Lean.mkConst ``Submission.impl\n  let lhs := Lean.mkApp implC (Lean.mkNatLit 5)\n  let out \u2190 whnf (\u2190 inferType implC).bindingBody!\n  let outIsInt := out.isConstOf ``Int\n  unless outIsInt || out.isConstOf ``Nat do\n    throwError \"unsupported impl output type {out}\"\n  let rhs := if outIsInt then Lean.mkApp (Lean.mkConst ``Int.ofNat) (Lean.mkNatLit 0) else Lean.mkNatLit 0\n  let ty \u2190 mkEq lhs rhs\n  let pf \u2190 mkEqRefl rhs\n  Lean.addDecl (.thmDecl {\n    name := `LeanKernelChallengeJudge.Generated_50b89c92eb153a9ce9b2139f.check,\n    levelParams := [],\n    type := ty,\n    value := pf })\n",
+  "J-B-add1": "import Submission\nimport Lean\nset_option maxRecDepth 4000000\nset_option maxHeartbeats 0\nopen Lean Meta Elab in\nrun_meta do\n  let implC := Lean.mkConst ``Submission.impl\n  let lhs := Lean.mkApp implC (Lean.mkNatLit 5)\n  let out \u2190 whnf (\u2190 inferType implC).bindingBody!\n  let outIsInt := out.isConstOf ``Int\n  unless outIsInt || out.isConstOf ``Nat do\n    throwError \"unsupported impl output type {out}\"\n  let rhs := if outIsInt then Lean.mkApp (Lean.mkConst ``Int.ofNat) (Lean.mkNatLit 5) else Lean.mkNatLit 5\n  let ty \u2190 mkEq lhs rhs\n  let pf \u2190 mkEqRefl rhs\n  Lean.addDecl (.thmDecl {\n    name := `LeanKernelChallengeJudge.Generated_60ca9face0fb73535aff2ee8.check,\n    levelParams := [],\n    type := ty,\n    value := pf })\n"
+ },
+ "cells": {
+  "J-C-trivial": {
+   "body": "def impl : Nat \u2192 Nat := fun _ => 0",
+   "n": 5,
+   "v": "0",
+   "theorem": "LeanKernelChallengeJudge.Generated_50b89c92eb153a9ce9b2139f.check",
+   "status": "ok",
+   "window_median": 199012,
+   "window_instructions": [
+    199026,
+    198550,
+    199012
+   ],
+   "window_min": 198550,
+   "window_max": 199026,
+   "window_spread_pct": 0.239,
+   "seconds": 1.97
+  },
+  "J-C-const": {
+   "body": "def impl : Nat \u2192 Nat := fun _ => 7",
+   "n": 5,
+   "v": "7",
+   "theorem": "LeanKernelChallengeJudge.Generated_da8f0c04fb7c9e030085d38e.check",
+   "status": "ok",
+   "window_median": 199864,
+   "window_instructions": [
+    199702,
+    199864,
+    200222
+   ],
+   "window_min": 199702,
+   "window_max": 200222,
+   "window_spread_pct": 0.26,
+   "seconds": 1.97
+  },
+  "J-A-recur": {
+   "body": "def impl : Nat \u2192 Nat\n  | 0 => 0\n  | n + 1 => impl n",
+   "n": 5,
+   "v": "0",
+   "theorem": "LeanKernelChallengeJudge.Generated_50b89c92eb153a9ce9b2139f.check",
+   "status": "ok",
+   "window_median": 848101,
+   "window_instructions": [
+    848101,
+    847825,
+    848533
+   ],
+   "window_min": 847825,
+   "window_max": 848533,
+   "window_spread_pct": 0.083,
+   "seconds": 2.16
+  },
+  "J-B-add1": {
+   "body": "def impl : Nat \u2192 Nat\n  | 0 => 0\n  | n + 1 => impl n + 1",
+   "n": 5,
+   "v": "5",
+   "theorem": "LeanKernelChallengeJudge.Generated_60ca9face0fb73535aff2ee8.check",
+   "status": "ok",
+   "window_median": 1027791,
+   "window_instructions": [
+    1027630,
+    1027999,
+    1027791
+   ],
+   "window_min": 1027630,
+   "window_max": 1027999,
+   "window_spread_pct": 0.036,
+   "seconds": 2.14
+  }
+ }
+}

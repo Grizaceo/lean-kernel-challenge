@@ -1,0 +1,29 @@
+F12 -- the marginal cost of arithmetic in the CHAMPION-REACHABLE shape (2026-10-05)
+
+A flat GMP chain `fun n => n + 1 + 1 + ... `, NO recursor, judge generator.
+scope: USER-SPACE only (LK_EXCLUDE_KERNEL=1) -- lower bounds on the judge's charge.
+
+  k (adds)  instructions      vs k=0   implied/add
+         0       183,396           0             0
+         1       305,916     122,520       122,520
+         2       327,473     144,077        72,038
+         3       347,376     163,980        54,660
+         5       386,270     202,874        40,575
+        10       486,550     303,154        30,315
+        20       683,907     500,511        25,026
+
+fit: 260,498 + (21,888 +- 2,315) * k    z = 9.5    worst residual 42.0%
+
+VERDICTS (pre-registered in scripts/f12_champion_shape_marginal.py)
+  G2 spread            : worst 0.28% (threshold 5%) -> PASS
+  G3 traversal         : beta = 21,888 +- 2,315 (z = 9.5 > 3.0) -> the chain DID force k adds
+  H12.1 cheap marginal: beta = 21,888 instr/add is 0.56x the 39,070 of headroom, so 1.79 adds fit in a champion slot -> H12.1 NOT rejected
+  ops per slot        : 2.50 adds after this run's own floor (k=0 = 183,396), or 1.79 after F11's independently measured floor
+  recursor vs chain   : a Nat.rec costs 95,398 per unfold (F10b) while a flat add costs 21,888 here = 4.36x. Recursion is the expensive form, not arithmetic.
+  G6 shape control    : this run's k=0 floor 183,396 vs F11's 199,012 = 0.9215x, drift 7.8% > 5% -> run DRIFTED, verdicts above VOID
+  G4 generator         : every theorem came from judge._perf_theorem_source; sources recorded verbatim. No hand-built substitute.
+  G5 no recursor       : every staged Submission.lean was asserted free of Nat.rec / structural patterns / match / termination_by before being built.
+  G8 scope            : user-space only (LK_EXCLUDE_KERNEL=1); the judge counts a SUPERSET, so these are LOWER bounds on the judge's charge. 'Fits in a champion slot' is used only in the safe direction.
+  G7 restoration       : Submission.lean, Perf.lean and Perf.olean restored byte-for-byte in a finally block.
+
+wrote /home/gris96/.hermes/workspace/repos/SAIR/lean-kernel-challenge/results/cost_model/f12_champion_shape_marginal.json

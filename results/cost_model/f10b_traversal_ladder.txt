@@ -1,0 +1,34 @@
+F10b -- the traversal-corrected ladder (2026-10-05)
+
+SUPERSEDES F10 Series A, which was VOID: its body returned a constant, so
+the kernel matched once and stopped at every k. G8 now voids any flat ladder.
+
+metric: instructions inside KERNEL_TIMING, target-declaration-replay-v1
+scope : USER-SPACE only (LK_EXCLUDE_KERNEL=1) -- ratios only, G6
+
+   k   C constant   A recur-empty       B add1      A - C      B - A
+   0      240,006         356,917      358,423    116,911      1,506
+   1      280,016         474,252      549,090    194,236     74,838
+   2      280,020         568,063      677,497    288,043    109,434
+   3      280,523         662,225      796,374    381,702    134,149
+   5      280,232         849,449    1,028,335    569,217    178,886
+  10      279,713       1,321,912    1,615,293  1,042,199    293,381
+
+fit A: 371,577 + (95,398 +- 1,129)*k   z=84.47   resid 4.1%
+fit B: 410,007 + (122,142 +- 4,005)*k   resid 14.4%
+fit C: 266,037 + (2,109 +- 2,001)*k
+
+DECISIVE: c(0)=356,917  c(1)=474,252  first unfold=117,335 = 0.329x c(0)
+
+VERDICTS (pre-registered in scripts/f10b_traversal_ladder.py)
+  G2 spread            : worst 0.65% (threshold 5%) -> PASS
+  G8 ladder traverses : Series A beta = 95,398 +- 1,129 (z = 84.5 > 3.0) -> the body DID force k unfolds; A is valid
+  G9 A distinct from C: A-C reaches 372.6% of C's cost, so the recursive body really does extra work beyond the first match
+  G5 instrument ctl   : Series B marginal = 122,142 instr/step vs F5b 121,537 = 1.005x (tol 10%) -> instrument CONSISTENT
+  G3 decisive         : first unfold = 117,335 = 0.329x c(0) (< 0.6) -> H10.2 REJECTED; the floor is paid ONCE
+  H10.4 body tax      : add inside a step = B-beta - A-beta = 122,142 - 95,398 = 26,744 instr/step vs F5b's own add1-minus-empty 21,889 = 1.22x
+  H10.4 vs F5b empty  : A-beta = 95,398 vs F5b's empty 99,648 = 0.957x; and F5's ladder beta 122,250 (F10 B) vs F5b add1 121,537 = 1.006x -> F5's '121k per unfold' was 'unfold + one add'
+  G4 shape assertion  : every probe carried mkApp implC (mkNatLit ...), mkEq/mkEqRefl, addDecl .thmDecl, maxRecDepth 4000000, maxHeartbeats 0
+  G6 scope            : USER-SPACE counts (LK_EXCLUDE_KERNEL=1). The judge counts user+kernel, so 238,082 is NOT compared to these absolutes; only ratios to this run's c(0) are quotable
+
+wrote /home/gris96/.hermes/workspace/repos/SAIR/lean-kernel-challenge/results/cost_model/f10b_traversal_ladder.json

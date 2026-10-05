@@ -1,0 +1,204 @@
+{
+ "status": "ok",
+ "generated": "2026-10-05T06:02:51-0300",
+ "metric": "instructions from KERNEL_TIMING, boundary=target-declaration-replay-v1",
+ "instrument": {
+  "timer": "/home/gris96/.hermes/workspace/repos/SAIR/lean-kernel-challenge/.verify/timer-kernel-local/.lake/build/bin/kernel",
+  "reps": 3,
+  "scope": "user-space only (LK_EXCLUDE_KERNEL=1)",
+  "generator": "judge._perf_theorem_source, imported verbatim",
+  "n_literal": 5
+ },
+ "references_not_inputs": {
+  "champion_slot": 238082,
+  "f11_floor_norec": 199012,
+  "f11_floor_rec": 356917,
+  "f10b_unfold_with_recursor": 95398,
+  "headroom": 39070
+ },
+ "preregistered": {
+  "H12.1": "marginal per add is a small fraction of the floor",
+  "H12.2": "marginal >= headroom, so the budget is one op per slot",
+  "criteria": {
+   "G1": "abort on failed cell",
+   "G2": "spread > 5% -> re-measure",
+   "G3": "ladder VOID unless z(beta) > 3.0",
+   "G4": "theorem must come from judge._perf_theorem_source",
+   "G5": "assert no recursor in the staged Submission",
+   "G6": "k=0 must agree with F11 within 5%",
+   "G7": "restore problems/ byte-for-byte",
+   "G8": "user-space only; safe direction for the fit test"
+  }
+ },
+ "verdicts": {
+  "H12.1": "NOT rejected",
+  "H12.2": "UNRESOLVED (ladder void)"
+ },
+ "ladder": [
+  [
+   0,
+   183396
+  ],
+  [
+   1,
+   305916
+  ],
+  [
+   2,
+   327473
+  ],
+  [
+   3,
+   347376
+  ],
+  [
+   5,
+   386270
+  ],
+  [
+   10,
+   486550
+  ],
+  [
+   20,
+   683907
+  ]
+ ],
+ "fit": {
+  "alpha": 260497.82600382413,
+  "beta_instr_per_add": 21887.883365200767,
+  "se_beta": 2315.3636814948086,
+  "worst_residual_pct": 42.04117101999178,
+  "z": 9.45332413224598
+ },
+ "generator_sources": {
+  "chain@0": "import Submission\nimport Lean\nset_option maxRecDepth 4000000\nset_option maxHeartbeats 0\nopen Lean Meta Elab in\nrun_meta do\n  let implC := Lean.mkConst ``Submission.impl\n  let lhs := Lean.mkApp implC (Lean.mkNatLit 5)\n  let out \u2190 whnf (\u2190 inferType implC).bindingBody!\n  let outIsInt := out.isConstOf ``Int\n  unless outIsInt || out.isConstOf ``Nat do\n    throwError \"unsupported impl output type {out}\"\n  let rhs := if outIsInt then Lean.mkApp (Lean.mkConst ``Int.ofNat) (Lean.mkNatLit 5) else Lean.mkNatLit 5\n  let ty \u2190 mkEq lhs rhs\n  let pf \u2190 mkEqRefl rhs\n  Lean.addDecl (.thmDecl {\n    name := `LeanKernelChallengeJudge.Generated_05b078da800432914cc208bc.check,\n    levelParams := [],\n    type := ty,\n    value := pf })\n",
+  "chain@1": "import Submission\nimport Lean\nset_option maxRecDepth 4000000\nset_option maxHeartbeats 0\nopen Lean Meta Elab in\nrun_meta do\n  let implC := Lean.mkConst ``Submission.impl\n  let lhs := Lean.mkApp implC (Lean.mkNatLit 5)\n  let out \u2190 whnf (\u2190 inferType implC).bindingBody!\n  let outIsInt := out.isConstOf ``Int\n  unless outIsInt || out.isConstOf ``Nat do\n    throwError \"unsupported impl output type {out}\"\n  let rhs := if outIsInt then Lean.mkApp (Lean.mkConst ``Int.ofNat) (Lean.mkNatLit 6) else Lean.mkNatLit 6\n  let ty \u2190 mkEq lhs rhs\n  let pf \u2190 mkEqRefl rhs\n  Lean.addDecl (.thmDecl {\n    name := `LeanKernelChallengeJudge.Generated_6cec697996fc6acfac816de4.check,\n    levelParams := [],\n    type := ty,\n    value := pf })\n",
+  "chain@2": "import Submission\nimport Lean\nset_option maxRecDepth 4000000\nset_option maxHeartbeats 0\nopen Lean Meta Elab in\nrun_meta do\n  let implC := Lean.mkConst ``Submission.impl\n  let lhs := Lean.mkApp implC (Lean.mkNatLit 5)\n  let out \u2190 whnf (\u2190 inferType implC).bindingBody!\n  let outIsInt := out.isConstOf ``Int\n  unless outIsInt || out.isConstOf ``Nat do\n    throwError \"unsupported impl output type {out}\"\n  let rhs := if outIsInt then Lean.mkApp (Lean.mkConst ``Int.ofNat) (Lean.mkNatLit 7) else Lean.mkNatLit 7\n  let ty \u2190 mkEq lhs rhs\n  let pf \u2190 mkEqRefl rhs\n  Lean.addDecl (.thmDecl {\n    name := `LeanKernelChallengeJudge.Generated_ba2b648d75d0901a5cff79f2.check,\n    levelParams := [],\n    type := ty,\n    value := pf })\n",
+  "chain@3": "import Submission\nimport Lean\nset_option maxRecDepth 4000000\nset_option maxHeartbeats 0\nopen Lean Meta Elab in\nrun_meta do\n  let implC := Lean.mkConst ``Submission.impl\n  let lhs := Lean.mkApp implC (Lean.mkNatLit 5)\n  let out \u2190 whnf (\u2190 inferType implC).bindingBody!\n  let outIsInt := out.isConstOf ``Int\n  unless outIsInt || out.isConstOf ``Nat do\n    throwError \"unsupported impl output type {out}\"\n  let rhs := if outIsInt then Lean.mkApp (Lean.mkConst ``Int.ofNat) (Lean.mkNatLit 8) else Lean.mkNatLit 8\n  let ty \u2190 mkEq lhs rhs\n  let pf \u2190 mkEqRefl rhs\n  Lean.addDecl (.thmDecl {\n    name := `LeanKernelChallengeJudge.Generated_fe9acf2431d869b1f6615df7.check,\n    levelParams := [],\n    type := ty,\n    value := pf })\n",
+  "chain@5": "import Submission\nimport Lean\nset_option maxRecDepth 4000000\nset_option maxHeartbeats 0\nopen Lean Meta Elab in\nrun_meta do\n  let implC := Lean.mkConst ``Submission.impl\n  let lhs := Lean.mkApp implC (Lean.mkNatLit 5)\n  let out \u2190 whnf (\u2190 inferType implC).bindingBody!\n  let outIsInt := out.isConstOf ``Int\n  unless outIsInt || out.isConstOf ``Nat do\n    throwError \"unsupported impl output type {out}\"\n  let rhs := if outIsInt then Lean.mkApp (Lean.mkConst ``Int.ofNat) (Lean.mkNatLit 10) else Lean.mkNatLit 10\n  let ty \u2190 mkEq lhs rhs\n  let pf \u2190 mkEqRefl rhs\n  Lean.addDecl (.thmDecl {\n    name := `LeanKernelChallengeJudge.Generated_4466bf7dee25c1ed9bc03b1c.check,\n    levelParams := [],\n    type := ty,\n    value := pf })\n",
+  "chain@10": "import Submission\nimport Lean\nset_option maxRecDepth 4000000\nset_option maxHeartbeats 0\nopen Lean Meta Elab in\nrun_meta do\n  let implC := Lean.mkConst ``Submission.impl\n  let lhs := Lean.mkApp implC (Lean.mkNatLit 5)\n  let out \u2190 whnf (\u2190 inferType implC).bindingBody!\n  let outIsInt := out.isConstOf ``Int\n  unless outIsInt || out.isConstOf ``Nat do\n    throwError \"unsupported impl output type {out}\"\n  let rhs := if outIsInt then Lean.mkApp (Lean.mkConst ``Int.ofNat) (Lean.mkNatLit 15) else Lean.mkNatLit 15\n  let ty \u2190 mkEq lhs rhs\n  let pf \u2190 mkEqRefl rhs\n  Lean.addDecl (.thmDecl {\n    name := `LeanKernelChallengeJudge.Generated_73a02fcc79dfc4505aba93d2.check,\n    levelParams := [],\n    type := ty,\n    value := pf })\n",
+  "chain@20": "import Submission\nimport Lean\nset_option maxRecDepth 4000000\nset_option maxHeartbeats 0\nopen Lean Meta Elab in\nrun_meta do\n  let implC := Lean.mkConst ``Submission.impl\n  let lhs := Lean.mkApp implC (Lean.mkNatLit 5)\n  let out \u2190 whnf (\u2190 inferType implC).bindingBody!\n  let outIsInt := out.isConstOf ``Int\n  unless outIsInt || out.isConstOf ``Nat do\n    throwError \"unsupported impl output type {out}\"\n  let rhs := if outIsInt then Lean.mkApp (Lean.mkConst ``Int.ofNat) (Lean.mkNatLit 25) else Lean.mkNatLit 25\n  let ty \u2190 mkEq lhs rhs\n  let pf \u2190 mkEqRefl rhs\n  Lean.addDecl (.thmDecl {\n    name := `LeanKernelChallengeJudge.Generated_949452b9b192d3d6797d4f1c.check,\n    levelParams := [],\n    type := ty,\n    value := pf })\n"
+ },
+ "cells": {
+  "chain@0": {
+   "k": 0,
+   "body": "def impl : Nat \u2192 Nat := fun n => n",
+   "n": 5,
+   "v": "5",
+   "status": "ok",
+   "window_median": 183396,
+   "window_instructions": [
+    183749,
+    183396,
+    183355
+   ],
+   "window_min": 183355,
+   "window_max": 183749,
+   "window_spread_pct": 0.215,
+   "seconds": 2.18
+  },
+  "chain@1": {
+   "k": 1,
+   "body": "def impl : Nat \u2192 Nat := fun n => n + 1",
+   "n": 5,
+   "v": "6",
+   "status": "ok",
+   "window_median": 305916,
+   "window_instructions": [
+    305916,
+    305493,
+    306352
+   ],
+   "window_min": 305493,
+   "window_max": 306352,
+   "window_spread_pct": 0.281,
+   "seconds": 2.05
+  },
+  "chain@2": {
+   "k": 2,
+   "body": "def impl : Nat \u2192 Nat := fun n => n + 1 + 1",
+   "n": 5,
+   "v": "7",
+   "status": "ok",
+   "window_median": 327473,
+   "window_instructions": [
+    327473,
+    327598,
+    327308
+   ],
+   "window_min": 327308,
+   "window_max": 327598,
+   "window_spread_pct": 0.089,
+   "seconds": 2.16
+  },
+  "chain@3": {
+   "k": 3,
+   "body": "def impl : Nat \u2192 Nat := fun n => n + 1 + 1 + 1",
+   "n": 5,
+   "v": "8",
+   "status": "ok",
+   "window_median": 347376,
+   "window_instructions": [
+    346824,
+    347799,
+    347376
+   ],
+   "window_min": 346824,
+   "window_max": 347799,
+   "window_spread_pct": 0.281,
+   "seconds": 2.02
+  },
+  "chain@5": {
+   "k": 5,
+   "body": "def impl : Nat \u2192 Nat := fun n => n + 1 + 1 + 1 + 1 + 1",
+   "n": 5,
+   "v": "10",
+   "status": "ok",
+   "window_median": 386270,
+   "window_instructions": [
+    386646,
+    386157,
+    386270
+   ],
+   "window_min": 386157,
+   "window_max": 386646,
+   "window_spread_pct": 0.127,
+   "seconds": 2.14
+  },
+  "chain@10": {
+   "k": 10,
+   "body": "def impl : Nat \u2192 Nat := fun n => n + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1",
+   "n": 5,
+   "v": "15",
+   "status": "ok",
+   "window_median": 486550,
+   "window_instructions": [
+    486550,
+    486405,
+    486959
+   ],
+   "window_min": 486405,
+   "window_max": 486959,
+   "window_spread_pct": 0.114,
+   "seconds": 2.03
+  },
+  "chain@20": {
+   "k": 20,
+   "body": "def impl : Nat \u2192 Nat := fun n => n + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1",
+   "n": 5,
+   "v": "25",
+   "status": "ok",
+   "window_median": 683907,
+   "window_instructions": [
+    683331,
+    683999,
+    683907
+   ],
+   "window_min": 683331,
+   "window_max": 683999,
+   "window_spread_pct": 0.098,
+   "seconds": 2.18
+  }
+ }
+}

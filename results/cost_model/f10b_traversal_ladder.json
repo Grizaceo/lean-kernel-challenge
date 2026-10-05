@@ -1,0 +1,456 @@
+{
+ "status": "ok",
+ "generated": "2026-10-05T05:50:10-0300",
+ "supersedes": "f10_floor_once_or_per_unfold.json (Series A void: constant body)",
+ "metric": "instructions from KERNEL_TIMING, boundary=target-declaration-replay-v1",
+ "instrument": {
+  "timer": "/home/gris96/.hermes/workspace/repos/SAIR/lean-kernel-challenge/.verify/timer-kernel-local/.lake/build/bin/kernel",
+  "reps": 3,
+  "scope": "user-space only (LK_EXCLUDE_KERNEL=1)",
+  "harness": "identical to F5/F8/F9/F10",
+  "probe_shape": "judge's own _perf_theorem_source form"
+ },
+ "references_not_inputs": {
+  "f8_floor": 118230,
+  "f10_A_c0_INVALID": 239705,
+  "f10_A_c1_INVALID": 279826,
+  "f10_B_beta": 122250,
+  "f5b_empty_per_step": 99648,
+  "f5b_add1_per_step": 121537,
+  "f5b_add_minus_empty": 21888.57,
+  "champion_slot": 238082
+ },
+ "preregistered": {
+  "H10.1": "floor paid ONCE per declaration",
+  "H10.2": "floor charged PER UNFOLD",
+  "H10.4": "per-unfold cost is neither F5b's 99,648 nor F5's 121,247",
+  "criteria": {
+   "G1": "abort on failed cell",
+   "G2": "spread > 5% -> re-measure",
+   "G3": {
+    "H10.1_reject_if_ratio_ge": 0.9,
+    "H10.2_reject_if_ratio_lt": 0.6,
+    "between": "UNRESOLVED, no blending (G7)"
+   },
+   "G4": "assert judge constructs present in every source",
+   "G5": "void run if B drifts > 10% from F5b",
+   "G6": "ratios only, never slot-to-slot with leaderboard",
+   "G7": "negatives reported with the same detail",
+   "G8": "Series A VOID unless z(beta) > 3.0",
+   "G9": "A indistinguishable from C => probe defect"
+  }
+ },
+ "verdicts": {
+  "H10.1": "NOT rejected",
+  "H10.2": "REJECTED",
+  "G5_control": "CONSISTENT",
+  "G8_series_A": "VALID"
+ },
+ "ladders": {
+  "C": [
+   [
+    0,
+    240006
+   ],
+   [
+    1,
+    280016
+   ],
+   [
+    2,
+    280020
+   ],
+   [
+    3,
+    280523
+   ],
+   [
+    5,
+    280232
+   ],
+   [
+    10,
+    279713
+   ]
+  ],
+  "A": [
+   [
+    0,
+    356917
+   ],
+   [
+    1,
+    474252
+   ],
+   [
+    2,
+    568063
+   ],
+   [
+    3,
+    662225
+   ],
+   [
+    5,
+    849449
+   ],
+   [
+    10,
+    1321912
+   ]
+  ],
+  "B": [
+   [
+    0,
+    358423
+   ],
+   [
+    1,
+    549090
+   ],
+   [
+    2,
+    677497
+   ],
+   [
+    3,
+    796374
+   ],
+   [
+    5,
+    1028335
+   ],
+   [
+    10,
+    1615293
+   ]
+  ]
+ },
+ "fits": {
+  "C": {
+   "alpha": 266037.3409669211,
+   "beta_instr_per_step": 2108.8549618320612,
+   "se_beta": 2000.6909698152465,
+   "worst_residual_pct": 10.846120916527555
+  },
+  "A": {
+   "alpha": 371577.4147582697,
+   "beta_instr_per_step": 95397.78625954199,
+   "se_beta": 1129.3254257883043,
+   "worst_residual_pct": 4.107513723994563
+  },
+  "B": {
+   "alpha": 410006.70992366417,
+   "beta_instr_per_step": 122141.51145038167,
+   "se_beta": 4004.96271073472,
+   "worst_residual_pct": 14.391852622087356
+  }
+ },
+ "decisive": {
+  "c0_A": 356917,
+  "c1_A": 474252,
+  "first_unfold_instr": 117335,
+  "first_unfold_over_c0": 0.32874589890646844,
+  "z_A": 84.47324755214058,
+  "add_inside_step_instr": 26743.725190839687,
+  "g5_drift": 0.004973888201795939,
+  "A_minus_C": {
+   "0": 116911,
+   "1": 194236,
+   "2": 288043,
+   "3": 381702,
+   "5": 569217,
+   "10": 1042199
+  }
+ },
+ "cells": {
+  "C@0": {
+   "series": "C",
+   "k": 0,
+   "forces": "constant body: the kernel matches once and is DONE, at every k",
+   "status": "ok",
+   "window_median": 240006,
+   "window_instructions": [
+    240222,
+    240006,
+    239585
+   ],
+   "window_min": 239585,
+   "window_max": 240222,
+   "window_spread_pct": 0.265,
+   "seconds": 7.25
+  },
+  "C@1": {
+   "series": "C",
+   "k": 1,
+   "forces": "constant body: the kernel matches once and is DONE, at every k",
+   "status": "ok",
+   "window_median": 280016,
+   "window_instructions": [
+    280016,
+    280259,
+    279397
+   ],
+   "window_min": 279397,
+   "window_max": 280259,
+   "window_spread_pct": 0.308,
+   "seconds": 1.78
+  },
+  "C@2": {
+   "series": "C",
+   "k": 2,
+   "forces": "constant body: the kernel matches once and is DONE, at every k",
+   "status": "ok",
+   "window_median": 280020,
+   "window_instructions": [
+    280020,
+    279893,
+    280054
+   ],
+   "window_min": 279893,
+   "window_max": 280054,
+   "window_spread_pct": 0.057,
+   "seconds": 1.81
+  },
+  "C@3": {
+   "series": "C",
+   "k": 3,
+   "forces": "constant body: the kernel matches once and is DONE, at every k",
+   "status": "ok",
+   "window_median": 280523,
+   "window_instructions": [
+    279680,
+    280523,
+    280651
+   ],
+   "window_min": 279680,
+   "window_max": 280651,
+   "window_spread_pct": 0.346,
+   "seconds": 1.85
+  },
+  "C@5": {
+   "series": "C",
+   "k": 5,
+   "forces": "constant body: the kernel matches once and is DONE, at every k",
+   "status": "ok",
+   "window_median": 280232,
+   "window_instructions": [
+    280502,
+    279896,
+    280232
+   ],
+   "window_min": 279896,
+   "window_max": 280502,
+   "window_spread_pct": 0.216,
+   "seconds": 1.81
+  },
+  "C@10": {
+   "series": "C",
+   "k": 10,
+   "forces": "constant body: the kernel matches once and is DONE, at every k",
+   "status": "ok",
+   "window_median": 279713,
+   "window_instructions": [
+    280038,
+    279711,
+    279713
+   ],
+   "window_min": 279711,
+   "window_max": 280038,
+   "window_spread_pct": 0.117,
+   "seconds": 1.79
+  },
+  "A@0": {
+   "series": "A",
+   "k": 0,
+   "forces": "recursive-empty: k NESTED applications, zero arithmetic",
+   "status": "ok",
+   "window_median": 356917,
+   "window_instructions": [
+    356917,
+    357212,
+    356791
+   ],
+   "window_min": 356791,
+   "window_max": 357212,
+   "window_spread_pct": 0.118,
+   "seconds": 1.82
+  },
+  "A@1": {
+   "series": "A",
+   "k": 1,
+   "forces": "recursive-empty: k NESTED applications, zero arithmetic",
+   "status": "ok",
+   "window_median": 474252,
+   "window_instructions": [
+    474456,
+    474252,
+    472837
+   ],
+   "window_min": 472837,
+   "window_max": 474456,
+   "window_spread_pct": 0.341,
+   "seconds": 1.79
+  },
+  "A@2": {
+   "series": "A",
+   "k": 2,
+   "forces": "recursive-empty: k NESTED applications, zero arithmetic",
+   "status": "ok",
+   "window_median": 568063,
+   "window_instructions": [
+    568217,
+    567080,
+    568063
+   ],
+   "window_min": 567080,
+   "window_max": 568217,
+   "window_spread_pct": 0.2,
+   "seconds": 1.78
+  },
+  "A@3": {
+   "series": "A",
+   "k": 3,
+   "forces": "recursive-empty: k NESTED applications, zero arithmetic",
+   "status": "ok",
+   "window_median": 662225,
+   "window_instructions": [
+    662225,
+    661687,
+    662369
+   ],
+   "window_min": 661687,
+   "window_max": 662369,
+   "window_spread_pct": 0.103,
+   "seconds": 1.81
+  },
+  "A@5": {
+   "series": "A",
+   "k": 5,
+   "forces": "recursive-empty: k NESTED applications, zero arithmetic",
+   "status": "ok",
+   "window_median": 849449,
+   "window_instructions": [
+    849558,
+    849449,
+    848290
+   ],
+   "window_min": 848290,
+   "window_max": 849558,
+   "window_spread_pct": 0.149,
+   "seconds": 1.8
+  },
+  "A@10": {
+   "series": "A",
+   "k": 10,
+   "forces": "recursive-empty: k NESTED applications, zero arithmetic",
+   "status": "ok",
+   "window_median": 1321912,
+   "window_instructions": [
+    1321912,
+    1326142,
+    1317493
+   ],
+   "window_min": 1317493,
+   "window_max": 1326142,
+   "window_spread_pct": 0.654,
+   "seconds": 1.78
+  },
+  "B@0": {
+   "series": "B",
+   "k": 0,
+   "forces": "k applications + k adds (the F5/F5b shape)",
+   "status": "ok",
+   "window_median": 358423,
+   "window_instructions": [
+    358916,
+    357668,
+    358423
+   ],
+   "window_min": 357668,
+   "window_max": 358916,
+   "window_spread_pct": 0.348,
+   "seconds": 1.79
+  },
+  "B@1": {
+   "series": "B",
+   "k": 1,
+   "forces": "k applications + k adds (the F5/F5b shape)",
+   "status": "ok",
+   "window_median": 549090,
+   "window_instructions": [
+    548891,
+    549841,
+    549090
+   ],
+   "window_min": 548891,
+   "window_max": 549841,
+   "window_spread_pct": 0.173,
+   "seconds": 1.82
+  },
+  "B@2": {
+   "series": "B",
+   "k": 2,
+   "forces": "k applications + k adds (the F5/F5b shape)",
+   "status": "ok",
+   "window_median": 677497,
+   "window_instructions": [
+    677722,
+    677497,
+    677173
+   ],
+   "window_min": 677173,
+   "window_max": 677722,
+   "window_spread_pct": 0.081,
+   "seconds": 1.82
+  },
+  "B@3": {
+   "series": "B",
+   "k": 3,
+   "forces": "k applications + k adds (the F5/F5b shape)",
+   "status": "ok",
+   "window_median": 796374,
+   "window_instructions": [
+    796374,
+    795570,
+    797467
+   ],
+   "window_min": 795570,
+   "window_max": 797467,
+   "window_spread_pct": 0.238,
+   "seconds": 1.92
+  },
+  "B@5": {
+   "series": "B",
+   "k": 5,
+   "forces": "k applications + k adds (the F5/F5b shape)",
+   "status": "ok",
+   "window_median": 1028335,
+   "window_instructions": [
+    1028322,
+    1030215,
+    1028335
+   ],
+   "window_min": 1028322,
+   "window_max": 1030215,
+   "window_spread_pct": 0.184,
+   "seconds": 1.77
+  },
+  "B@10": {
+   "series": "B",
+   "k": 10,
+   "forces": "k applications + k adds (the F5/F5b shape)",
+   "status": "ok",
+   "window_median": 1615293,
+   "window_instructions": [
+    1615293,
+    1615910,
+    1613244
+   ],
+   "window_min": 1613244,
+   "window_max": 1615910,
+   "window_spread_pct": 0.165,
+   "seconds": 1.75
+  }
+ }
+}

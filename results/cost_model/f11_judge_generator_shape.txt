@@ -1,0 +1,23 @@
+F11 -- F10b's floor: probe artefact, or the judge's own shape? (2026-10-05)
+
+theorem source from judge._perf_theorem_source, imported verbatim (G4)
+scope: USER-SPACE only (LK_EXCLUDE_KERNEL=1); judge counts a SUPERSET (G5)
+
+cell           instructions    vs F10b  what
+J-C-trivial         199,012     0.829x  impl ignores its input, computes nothing
+J-C-const           199,864             impl returns a constant: no recursor, no arithmetic
+J-A-recur           848,101     2.376x  impl is a Nat.rec: k=5 unfolds, no arithmetic
+J-B-add1          1,027,791     8.415x  impl is a Nat.rec with one Nat.add per step, k=5
+
+VERDICTS (pre-registered in scripts/f11_judge_generator_shape.py)
+  G2 spread            : worst 0.26% (threshold 5%) -> PASS
+  G3 decisive         : judge-generated vs F10b hand-built differ by up to 137.6% (J-C-trivial 0.829x, J-A-recur 2.376x) > 5% -> H11.1 NOT rejected: part of F10b's floor IS a probe artefact and the hand-built shape overstates it.
+  budget consequence  : 6 x trivial declaration = 1,194,072 vs the champion's whole curveWork 1,428,492 = 0.836x. A trivial declaration is cheaper than the champion's total.
+  recursor price      : constant-returning impl 199,864; impl ignoring its input 199,012 = 0.996x that; Nat.rec version 848,101 = 4.243x. The step up to a recursor is the price of HAVING one, paid once -- and it is the single largest term in the whole cost model.
+  unrepresentable      : a `Nat -> Nat` CONSTANT has no literal in Lean (`OfNat (Nat -> Nat) 7` does not exist), so 'impl applies nothing at all' is NOT measurable. J-C-const is a lambda returning a constant and is labelled that way; no cell is claimed beyond what it measures.
+  G4 generator         : all four theorems came from judge._perf_theorem_source and every source is recorded verbatim in this artifact. No substitute.
+  G5 scope/direction   : user-space only (LK_EXCLUDE_KERNEL=1); the judge counts user+kernel, a SUPERSET, so these floors are LOWER bounds on the judge's charge. The champion's 238,082/slot sitting BELOW my floor cannot be repaired by that bias -- the contradiction runs in the safe direction.
+  G6 oracle            : every v is hand-checkable for a trivial impl and the theorem is self-validating, so a wrong v fails to BUILD and no wrong cost is possible.
+  G7 restoration       : Submission.lean, Perf.lean and Perf.olean were restored byte-for-byte in a finally block; problems/ is unmodified.
+
+wrote /home/gris96/.hermes/workspace/repos/SAIR/lean-kernel-challenge/results/cost_model/f11_judge_generator_shape.json
