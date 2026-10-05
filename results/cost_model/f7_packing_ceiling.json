@@ -1,0 +1,172 @@
+{
+ "status": "ok",
+ "generated": "2026-10-05T02:36:28-0300",
+ "metric": "instructions from KERNEL_TIMING, boundary=target-declaration-replay-v1",
+ "instrument": {
+  "timer": "/home/gris96/.hermes/workspace/repos/SAIR/lean-kernel-challenge/.verify/timer-kernel-local/.lake/build/bin/kernel",
+  "reps": 3,
+  "harness": "identical to F6b: single mkApp2 Nat.add"
+ },
+ "champion_per_slot_budget": 238082,
+ "preregistered": {
+  "H7.1": "packed cost within 1.25x of F6b's 64-lane cost up to 4096 lanes",
+  "H7.2": "no cost cliff before 4096 lanes",
+  "H7.3": "one op carries 512 lanes under a champion's whole slot",
+  "criteria": {
+   "G1": "abort on failed cell",
+   "G2": "spread > 5%",
+   "G3": "reject H7.1 if any lane count > 1.25x of 64-lane cost",
+   "G4": "reject H7.2 if marginal cost per lane rises monotonically",
+   "G5": "reject H7.3 if 512 lanes not under budget",
+   "G6": "unresolved if still sublinear at the widest point"
+  }
+ },
+ "verdicts": {
+  "H7.1": "REJECTED",
+  "H7.2": "NOT rejected",
+  "H7.3": "REJECTED"
+ },
+ "marginal_instr_per_lane": [
+  {
+   "from_lanes": 128,
+   "to_lanes": [
+    128,
+    250766
+   ],
+   "instr_per_lane": 89.265625
+  },
+  {
+   "from_lanes": 256,
+   "to_lanes": [
+    256,
+    254533
+   ],
+   "instr_per_lane": 29.4296875
+  },
+  {
+   "from_lanes": 512,
+   "to_lanes": [
+    512,
+    263482
+   ],
+   "instr_per_lane": 34.95703125
+  },
+  {
+   "from_lanes": 1024,
+   "to_lanes": [
+    1024,
+    282595
+   ],
+   "instr_per_lane": 37.330078125
+  },
+  {
+   "from_lanes": 2048,
+   "to_lanes": [
+    2048,
+    320738
+   ],
+   "instr_per_lane": 37.2490234375
+  },
+  {
+   "from_lanes": 4096,
+   "to_lanes": [
+    4096,
+    396279
+   ],
+   "instr_per_lane": 36.88525390625
+  }
+ ],
+ "cells": {
+  "pack64": {
+   "lanes": 64,
+   "lane_bits": 64,
+   "total_bits": 4160,
+   "export_bytes": 29655,
+   "window_median": 245053,
+   "window_min": 245050,
+   "window_max": 245322,
+   "window_spread_pct": 0.111,
+   "vs_champion_slot": 1.0293,
+   "seconds": 3.06,
+   "status": "ok"
+  },
+  "pack128": {
+   "lanes": 128,
+   "lane_bits": 64,
+   "total_bits": 8320,
+   "export_bytes": 33413,
+   "window_median": 250766,
+   "window_min": 250065,
+   "window_max": 250990,
+   "window_spread_pct": 0.369,
+   "vs_champion_slot": 1.0533,
+   "seconds": 3.16,
+   "status": "ok"
+  },
+  "pack256": {
+   "lanes": 256,
+   "lane_bits": 64,
+   "total_bits": 16640,
+   "export_bytes": 40928,
+   "window_median": 254533,
+   "window_min": 254466,
+   "window_max": 254629,
+   "window_spread_pct": 0.064,
+   "vs_champion_slot": 1.0691,
+   "seconds": 3.11,
+   "status": "ok"
+  },
+  "pack512": {
+   "lanes": 512,
+   "lane_bits": 64,
+   "total_bits": 33280,
+   "export_bytes": 55956,
+   "window_median": 263482,
+   "window_min": 263335,
+   "window_max": 263600,
+   "window_spread_pct": 0.101,
+   "vs_champion_slot": 1.1067,
+   "seconds": 3.27,
+   "status": "ok"
+  },
+  "pack1024": {
+   "lanes": 1024,
+   "lane_bits": 64,
+   "total_bits": 66560,
+   "export_bytes": 86012,
+   "window_median": 282595,
+   "window_min": 282497,
+   "window_max": 283222,
+   "window_spread_pct": 0.257,
+   "vs_champion_slot": 1.187,
+   "seconds": 4.01,
+   "status": "ok"
+  },
+  "pack2048": {
+   "lanes": 2048,
+   "lane_bits": 64,
+   "total_bits": 133120,
+   "export_bytes": 146122,
+   "window_median": 320738,
+   "window_min": 320595,
+   "window_max": 321115,
+   "window_spread_pct": 0.162,
+   "vs_champion_slot": 1.3472,
+   "seconds": 6.37,
+   "status": "ok"
+  },
+  "pack4096": {
+   "lanes": 4096,
+   "lane_bits": 64,
+   "total_bits": 266240,
+   "export_bytes": 266343,
+   "window_median": 396279,
+   "window_min": 396208,
+   "window_max": 396699,
+   "window_spread_pct": 0.124,
+   "vs_champion_slot": 1.6645,
+   "seconds": 15.72,
+   "status": "ok"
+  }
+ }
+}

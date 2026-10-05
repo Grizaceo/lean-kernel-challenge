@@ -1,0 +1,29 @@
+F7 -- is there a packing ceiling? [64, 4096] lanes (2026-10-05)
+
+metric: instructions in KERNEL_TIMING, boundary=target-declaration-replay-v1
+champion per-slot budget: 238,082 instr
+
+  lanes   operand bits    instructions  vs 64-lane  vs champion
+     64          4,160         245,053      0.998x        1.03x
+    128          8,320         250,766      1.021x        1.05x
+    256         16,640         254,533      1.036x        1.07x
+    512         33,280         263,482      1.073x        1.11x
+   1024         66,560         282,595      1.150x        1.19x
+   2048        133,120         320,738      1.306x        1.35x
+   4096        266,240         396,279      1.613x        1.66x
+
+marginal cost per additional lane:
+  up to   128 lanes:      89.27 instr/lane
+  up to   256 lanes:      29.43 instr/lane
+  up to   512 lanes:      34.96 instr/lane
+  up to  1024 lanes:      37.33 instr/lane
+  up to  2048 lanes:      37.25 instr/lane
+  up to  4096 lanes:      36.89 instr/lane
+
+VERDICTS (pre-registered in scripts/f7_packing_ceiling.py)
+  G2 spread            : worst 0.37% (threshold 5%) -> PASS
+  G3 H7.1 flatness    : BREACHED at 2048 lanes (1.31x), 4096 lanes (1.61x) -> H7.1 REJECTED
+  G4 H7.2 cliff       : last marginal = 36.9 instr/lane, not monotone rising -> H7.2 NOT rejected
+  G5 H7.3 one-op row  : 512 lanes is 263,482 instr = 1.11x a champion's slot; best under budget = None lanes -> H7.3 REJECTED
+
+wrote /home/gris96/.hermes/workspace/repos/SAIR/lean-kernel-challenge/results/cost_model/f7_packing_ceiling.json
