@@ -1,0 +1,318 @@
+{
+ "status": "ok",
+ "generated": "2026-10-05T04:45:56-0300",
+ "metric": "instructions from KERNEL_TIMING, boundary=target-declaration-replay-v1",
+ "instrument": {
+  "timer": "/home/gris96/.hermes/workspace/repos/SAIR/lean-kernel-challenge/.verify/timer-kernel-local/.lake/build/bin/kernel",
+  "reps": 3,
+  "scope": "user-space only (LK_EXCLUDE_KERNEL=1)",
+  "harness": "identical to F5/F8/F9",
+  "probe_shape": "judge's own _perf_theorem_source form"
+ },
+ "references_not_inputs": {
+  "f8_floor": 118230,
+  "f9_add_small": 206328,
+  "f5b_add1_per_step": 121537,
+  "champion_slot": 238082
+ },
+ "preregistered": {
+  "H10.1": "floor paid ONCE per declaration",
+  "H10.2": "floor charged PER UNFOLD",
+  "H10.3": "Series B reproduces F5b's 121,537 instr/step within 10%",
+  "criteria": {
+   "G1": "abort on failed cell",
+   "G2": "spread > 5% -> re-measure",
+   "G3": {
+    "H10.1_reject_if_ratio_ge": 0.9,
+    "H10.2_reject_if_ratio_lt": 0.6,
+    "between": "UNRESOLVED, no blending (G7)"
+   },
+   "G4": "assert the judge's constructs are present in every source",
+   "G5": "void the run if Series B drifts > 10% from F5b",
+   "G6": "never compare absolutes to the leaderboard; ratios only",
+   "G7": "report negatives with the same detail as positives"
+  }
+ },
+ "verdicts": {
+  "H10.1": "NOT rejected",
+  "H10.2": "REJECTED",
+  "H10.3": "CONSISTENT"
+ },
+ "ladder_A_empty": [
+  [
+   0,
+   239705
+  ],
+  [
+   1,
+   279826
+  ],
+  [
+   2,
+   280101
+  ],
+  [
+   3,
+   280236
+  ],
+  [
+   5,
+   279837
+  ],
+  [
+   10,
+   279491
+  ]
+ ],
+ "ladder_B_add1": [
+  [
+   0,
+   357817
+  ],
+  [
+   1,
+   549301
+  ],
+  [
+   2,
+   677462
+  ],
+  [
+   3,
+   796522
+  ],
+  [
+   5,
+   1029530
+  ],
+  [
+   10,
+   1615868
+  ]
+ ],
+ "fit_A": {
+  "alpha": 265844.25699745544,
+  "beta_instr_per_step": 2101.4503816793895,
+  "se_beta": 2008.8737374279553,
+  "worst_residual_pct": 10.904760850818898
+ },
+ "fit_B": {
+  "alpha": 409875.213740458,
+  "beta_instr_per_step": 122249.93893129771,
+  "se_beta": 4040.385625044675,
+  "worst_residual_pct": 14.548837461735472
+ },
+ "decisive": {
+  "c0_A": 239705,
+  "c1_A": 279826,
+  "first_unfold_instr": 40121,
+  "first_unfold_over_c0": 0.1673765670303081,
+  "g5_drift": 0.005866023772988593
+ },
+ "cells": {
+  "A-empty@0": {
+   "series": "A",
+   "body": "empty",
+   "k": 0,
+   "value": 0,
+   "status": "ok",
+   "window_median": 239705,
+   "window_instructions": [
+    239820,
+    239596,
+    239705
+   ],
+   "window_min": 239596,
+   "window_max": 239820,
+   "window_spread_pct": 0.093,
+   "seconds": 7.46
+  },
+  "A-empty@1": {
+   "series": "A",
+   "body": "empty",
+   "k": 1,
+   "value": 0,
+   "status": "ok",
+   "window_median": 279826,
+   "window_instructions": [
+    279700,
+    280012,
+    279826
+   ],
+   "window_min": 279700,
+   "window_max": 280012,
+   "window_spread_pct": 0.111,
+   "seconds": 1.81
+  },
+  "A-empty@2": {
+   "series": "A",
+   "body": "empty",
+   "k": 2,
+   "value": 0,
+   "status": "ok",
+   "window_median": 280101,
+   "window_instructions": [
+    280101,
+    280195,
+    279990
+   ],
+   "window_min": 279990,
+   "window_max": 280195,
+   "window_spread_pct": 0.073,
+   "seconds": 1.83
+  },
+  "A-empty@3": {
+   "series": "A",
+   "body": "empty",
+   "k": 3,
+   "value": 0,
+   "status": "ok",
+   "window_median": 280236,
+   "window_instructions": [
+    279536,
+    280325,
+    280236
+   ],
+   "window_min": 279536,
+   "window_max": 280325,
+   "window_spread_pct": 0.282,
+   "seconds": 1.76
+  },
+  "A-empty@5": {
+   "series": "A",
+   "body": "empty",
+   "k": 5,
+   "value": 0,
+   "status": "ok",
+   "window_median": 279837,
+   "window_instructions": [
+    279837,
+    279458,
+    279933
+   ],
+   "window_min": 279458,
+   "window_max": 279933,
+   "window_spread_pct": 0.17,
+   "seconds": 1.77
+  },
+  "A-empty@10": {
+   "series": "A",
+   "body": "empty",
+   "k": 10,
+   "value": 0,
+   "status": "ok",
+   "window_median": 279491,
+   "window_instructions": [
+    279491,
+    279319,
+    279621
+   ],
+   "window_min": 279319,
+   "window_max": 279621,
+   "window_spread_pct": 0.108,
+   "seconds": 1.74
+  },
+  "B-add1@0": {
+   "series": "B",
+   "body": "add1",
+   "k": 0,
+   "value": 0,
+   "status": "ok",
+   "window_median": 357817,
+   "window_instructions": [
+    357675,
+    357817,
+    358273
+   ],
+   "window_min": 357675,
+   "window_max": 358273,
+   "window_spread_pct": 0.167,
+   "seconds": 1.76
+  },
+  "B-add1@1": {
+   "series": "B",
+   "body": "add1",
+   "k": 1,
+   "value": 1,
+   "status": "ok",
+   "window_median": 549301,
+   "window_instructions": [
+    549301,
+    550157,
+    548799
+   ],
+   "window_min": 548799,
+   "window_max": 550157,
+   "window_spread_pct": 0.247,
+   "seconds": 1.78
+  },
+  "B-add1@2": {
+   "series": "B",
+   "body": "add1",
+   "k": 2,
+   "value": 2,
+   "status": "ok",
+   "window_median": 677462,
+   "window_instructions": [
+    678450,
+    677462,
+    676279
+   ],
+   "window_min": 676279,
+   "window_max": 678450,
+   "window_spread_pct": 0.32,
+   "seconds": 1.85
+  },
+  "B-add1@3": {
+   "series": "B",
+   "body": "add1",
+   "k": 3,
+   "value": 3,
+   "status": "ok",
+   "window_median": 796522,
+   "window_instructions": [
+    798190,
+    795266,
+    796522
+   ],
+   "window_min": 795266,
+   "window_max": 798190,
+   "window_spread_pct": 0.367,
+   "seconds": 1.74
+  },
+  "B-add1@5": {
+   "series": "B",
+   "body": "add1",
+   "k": 5,
+   "value": 5,
+   "status": "ok",
+   "window_median": 1029530,
+   "window_instructions": [
+    1029530,
+    1028898,
+    1030498
+   ],
+   "window_min": 1028898,
+   "window_max": 1030498,
+   "window_spread_pct": 0.155,
+   "seconds": 1.76
+  },
+  "B-add1@10": {
+   "series": "B",
+   "body": "add1",
+   "k": 10,
+   "value": 10,
+   "status": "ok",
+   "window_median": 1615868,
+   "window_instructions": [
+    1615868,
+    1611255,
+    1618364
+   ],
+   "window_min": 1611255,
+   "window_max": 1618364,
+   "window_spread_pct": 0.44,
+   "seconds": 1.8
+  }
+ }
+}

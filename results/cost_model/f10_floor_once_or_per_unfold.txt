@@ -1,0 +1,27 @@
+F10 -- is the 118k floor paid ONCE per declaration or PER UNFOLD? (2026-10-05)
+
+metric: instructions inside KERNEL_TIMING, boundary=target-declaration-replay-v1
+scope : USER-SPACE only (LK_EXCLUDE_KERNEL=1) -- ratios only, G6
+shape : the judge's own _perf_theorem_source form (G4 asserted)
+
+ k (unfolds)    A empty body    A fitted     B add1 body    B fitted
+           0         239,705     265,844         357,817     409,875
+           1         279,826     267,946         549,301     532,125
+           2         280,101     270,047         677,462     654,375
+           3         280,236     272,149         796,522     776,625
+           5         279,837     276,352       1,029,530   1,021,125
+          10         279,491     286,859       1,615,868   1,632,375
+
+Series A fit: 265,844 + (2,101 +- 2,009) * k   worst residual 10.9%
+Series B fit: 409,875 + (122,250 +- 4,040) * k   worst residual 14.5%
+
+DECISIVE: c(0)=239,705  c(1)=279,826  first unfold=40,121  = 0.167x c(0)
+
+VERDICTS (criteria pre-registered in scripts/f10_floor_once_or_per_unfold.py)
+  G2 spread            : worst 0.44% (threshold 5%) -> PASS
+  G5 H10.3 control    : Series B marginal = 122,250 instr/step vs F5b 121,537 = 1.006x (tolerance 10%) -> instrument CONSISTENT
+  G3 decisive         : first unfold costs 40,121 instr = 0.167x c(0) (< 0.6) -> H10.2 REJECTED. The floor is paid ONCE per declaration.
+  G4 shape assertion  : every probe carried mkApp implC (mkNatLit ...), mkEq/mkEqRefl, addDecl .thmDecl, maxRecDepth 4000000, maxHeartbeats 0. No probe was substituted.
+  G6 scope            : these are USER-SPACE counts (LK_EXCLUDE_KERNEL=1). The judge counts user+kernel, so the absolute 238,082 (champion slot) is NOT compared here; only ratios to this run's c(0) are quotable.
+
+wrote /home/gris96/.hermes/workspace/repos/SAIR/lean-kernel-challenge/results/cost_model/f10_floor_once_or_per_unfold.json
