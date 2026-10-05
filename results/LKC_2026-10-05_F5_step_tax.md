@@ -162,6 +162,58 @@ Nuestra submission 866 en `partition`: 5.382.233.514 / 6 = 897.038.919 por slot
 optimizado tiene `impl_correct` cerrado y sigue a 7.398 pasos: cerrar la prueba
 **no**approxima el ranking; el unfold es la barrera.
 
+## 4b. Verificación de la UNIDAD de `computationTotal` (y lo que NO incluye)
+
+**Este apartado existe porque el §4 se apoyaba en un supuesto que no había
+verificado: que `computationTotal` está en instrucciones.** Lo verifiqué contra
+el payload crudo del leaderboard (2026-10-05, `partition` rank 1):
+
+```json
+{"computationTotal": "1428492", "correctnessWork": "17804040326",
+ "curveWork": "1428492", "rankingWork": "1428492",
+ "rankingContract": "computation-total-v1",
+ "coverage": {"completed": 6, "planned": 6},
+ "correctnessRole": "verification-only", "peakMemoryBytes": 720916480}
+```
+
+Tres comprobaciones independientes:
+
+1. **Unidad.** 1.428.492 / 6 slots = **238.082 instr/slot** frente a los 234.552
+   de un `Nat.add` trivial medido con el timer. Coincide al **1,015×**. No es
+   µs (serían ~0,24 ms, incompatible con la escala del tablero), no es un
+   recuento de pasos Lean. Es instrucciones, y es **casi exactamente una sola
+   operación trivial**.
+2. **La métrica puntuada es solo `computationTotal`.** `rankingContract =
+   computation-total-v1`; `computationTotal`, `curveWork` y `rankingWork` son el
+   mismo valor. `correctnessWork` (17,8 miles de millones) se reporta aparte,
+   con `correctnessRole: verification-only` — **no puntúa**.
+3. **La brecha de ~700× que me confundió** (`floor.py` = 168,86M para un `impl`
+   trivial) es de boundaries, no de unidades: `floor.py` cuenta el **proceso
+   entero** (`INSTR_TOTAL`, incluye arranque y parseo), `replay` de `f2_harness`
+   cuenta la **ventana puntuada** (`KERNEL_TIMING.instructions`, solo
+   `measureReplay`). El docstring de `replay` ya lo decía; yo mezclé las dos
+   cifras.
+4. **Errata propia en la tabla de arriba: `sha256` tiene 6 slots, no 61.** Lo
+   leí mal del campo `coverage` del payload; el número real sale de
+   `evaluation/problems/sha256/config.json` → 3 grupos × 2 casos = 6 slots, igual
+   que el resto. `permanent` sí tiene 15 (3 grupos × 5). Todos los demás, 6.
+   La cifra por slot de `sha256` no cambia por esto.
+
+**Consecuencia estratégica que esto cambia.** La verificación de `impl_correct`
+para el líder de `partition` cuesta 17,8Md instr = **2,97Md por slot**, es decir
+**24.474 pasos de kernel**, frente a 1,96 pasos del replay puntuado. Es ~12.463×
+el coste del replay. Pero **no puntúa**: el ranking es `computation-total-v1`.
+
+Esto significa que la estrategia correcta es **minimizar el replay, no la
+verificación**. Un candidato con `impl_correct` costoso pero replay mínimo sigue
+ganando si el replay es pequeño. Es contraintuitivo para un challenge que
+formaliza: para competir en `partition` no importa cuánto cueste *demostrar* que
+`impl` es correcto, importa solo cuánto cueste *ejecutarlo*.
+
+Corrijo el framing del §4: escribí «el presupuesto entero del líder equivale a
+desdoblar ~2 recursores». Es correcto para el replay puntuado, y es
+específicamente el replay — no el trabajo total — lo que se puntúa.
+
 ## 5. Corrección a F5: linealidad
 
 Un matiz de rigor. G3 rechazó la **linealidad** (residuo 24,49%), no la
@@ -184,6 +236,45 @@ relevantes.
 - «~2 pasos/slot» para los líderes usa la pendiente asintótica y una
   extrapolación razonable a budgets pequeños; es una estimación de orden de
   magnitud, no una auditoría.
+- **Los `n` del plan local NO son los del plan oficial.** `grouped_plan` fija
+  `PERF_SEED = "local-dev-seed"` y el juez usa «una semilla oculta por cohorte»
+  (docstring de `grouped_plan`). La FORMA del plan (grupos, casos, escalas)
+  transfiere; los valores concretos de `n` no. Por tanto **las cifras locales
+  de `--group-check` son internamente consistentes pero no comparables slot a slot
+  con el leaderboard.** Solo el leaderboard da la cifra puntuada.
+
+## 6b. Dos mediciones de control de hoy que desmienten atajos de razonamiento
+
+**(a) El trivial de `polydisc` es 12,8× PEOR que su líder, no mejor.** Por la
+escala del tablero (1.221Md de instrucciones) y una cifra de `baseline.py` de
+2,093M, la aritmética sugería que `def impl n := discSpec n` (legal, con
+`impl_correct := rfl`) se llevaría el #1. **Medido sobre el plan oficial local:
+15.665.813.912 instrucciones** — el trivial es 12,8× *peor* que el mejor
+submission. Las cifras de `baseline.py` se midieron a n=12 (una entrada) y no
+son extrapolables a `computationTotal` (suma sobre 6 slots). **No volver a
+comparar una cifra de n=12 contra una de plan completo.**
+
+**(b) Nuestro mejor candidato está 6.631× peor que el líder de `partition`.**
+`partition-stream-addblocks` sobre el plan oficial local: 9.471.375.938
+instrucciones (suma), frente a 1.428.492 del rank 1. Aunque el plan local usa
+otros `n`, la magnitud del hueco (cuatro órdenes) no depende del plan: el
+candidato optimizado, con `impl_correct` cerrado, sigue ocupando miles de pasos
+de unfold mientras el líder paga ~2. **Cerrar la prueba no acerca al ranking; el
+unfold es la barrera** — la misma conclusión de §4, ahora con el número del
+candidato a la vista.
+
+**(c) El número de slots NO es una palanca: está fijado por config.** Sospeché
+que `permanent` (15 slots) y `sha256` eran atacables vía el número de casos, ya
+que `computationTotal` es una suma. **No lo es**: `sampling.count` vive en
+`evaluation/problems/<p>/config.json`, que es del harness, no del submission.
+Ningún candidato puede cambiarlo. Descartado antes de gastar tiempo.
+
+**(d) El contrato real, leído de la config, es
+`{work: curve, proof: gate}`.** Es decir: el trabajo puntuado es la curva de
+cómputo, y la prueba es un **gate** (puerta de paso), no una componente sumada.
+Esto confirma §4b por la vía estructural y no solo por el payload: el
+`correctnessWork` de 17,8Md del líder es el coste de **pasar la puerta**, y no
+entra en el ranking.
 
 ## 7. Artefactos
 
