@@ -1,0 +1,17 @@
+F5b -- is the per-step tax universal? (2026-10-05, k=100 for every body)
+
+metric: instructions inside KERNEL_TIMING, boundary=target-declaration-replay-v1
+
+body    work per step        instructions   spread  per-step
+empty   (none)                 10,424,391    0.77%     99,648
+add1    1 addition             12,613,248    0.66%    121,537
+xor1    1 xor                  12,666,076    0.40%    122,065
+heavy   16 additions           43,268,868    0.12%    428,093
+
+VERDICTS (criteria pre-registered in scripts/f5b_body_tax.py)
+  G2 spread            : worst 0.77% (threshold 5%) -> PASS
+  G4 control          : empty=10,424,391 <= heavy=43,268,868 -> control behaves as required
+  G3 body matters: max/min = heavy/empty = 4.151x (threshold 1.05) -> reading (B) ADOPTED
+
+ADOPTED: (B) BODY-DEPENDENT
+wrote /home/gris96/.hermes/workspace/repos/SAIR/lean-kernel-challenge/results/cost_model/f5b_body_tax.json

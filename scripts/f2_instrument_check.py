@@ -15,22 +15,22 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
-from f2_harness import build_and_export, problem_dir, replay  # noqa: E402
+from f2_harness import (build_and_export, problem_dir, probe_source,  # noqa: E402
+                        replay)
 
 pdir = problem_dir("partition")
 work = Path("/home/gris96/.hermes/profiles/eidos/cache/scratch/f2-instrument")
 work.mkdir(parents=True, exist_ok=True)
 
-# Q1: smallest honest probe -- one 64-bit add, proved by rfl.
-SRC = """import Spec
+# Q1: smallest honest probe -- one 64-bit add, proved the way the JUDGE proves
+# it. A source-level `theorem check : ... := rfl` does NOT reach the exported
+# environment (the module imports fine, but `F2Probe.check` is an unknown
+# identifier and lean4export PANICs with rc=0), so this probe must declare the
+# theorem through Lean.addDecl exactly like f2_harness.probe_source does.
+# This was the stale part: the check had drifted behind the harness it validates.
+SRC = probe_source("Nat.add", 2 ** 32, 2 ** 31, 2 ** 32 + 2 ** 31, "F2Probe.check")
 
-set_option maxRecDepth 4000000
-set_option maxHeartbeats 0
-
-theorem check : Nat.add (2^32) (2^31) = 6442450944 := rfl
-"""
-
-print("=== Q1: build + export of a trivial 64-bit probe ===", flush=True)
+print("=== Q1: build + export of a trivial 64-bit probe (addDecl form) ===", flush=True)
 try:
     export = build_and_export(pdir, SRC, "F2Probe.check", work)
     print(f"    export OK: {export.stat().st_size:,} B at {export}", flush=True)

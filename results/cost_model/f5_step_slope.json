@@ -1,0 +1,365 @@
+{
+ "status": "ok",
+ "generated": "2026-10-05T01:45:01-0300",
+ "metric": "instructions from KERNEL_TIMING, boundary=target-declaration-replay-v1",
+ "instrument": {
+  "timer": "/home/gris96/.hermes/workspace/repos/SAIR/lean-kernel-challenge/.verify/timer-kernel-local/.lake/build/bin/kernel",
+  "reps": 3,
+  "scope": "user-space only (LK_EXCLUDE_KERNEL=1)"
+ },
+ "preregistered": {
+  "H5.1": "c(k) linear in reduction steps k",
+  "H5.2": "alpha dominates: steps are a minority of the cost",
+  "H5.3": "F2's 63-bit step belongs to the operand literal, not the op",
+  "criteria": {
+   "G1": "abort on failed cell",
+   "G2": "spread > 5%",
+   "G3": "reject H5.1 if residual > 5%",
+   "G4": "unresolved if beta <= its standard error",
+   "G5": "reject H5.2 if beta*kmax > alpha"
+  }
+ },
+ "fit": {
+  "alpha": 459594.9318895675,
+  "beta_instr_per_step": 121247.31249321773,
+  "se_beta": 78.95284722641365,
+  "worst_residual_pct": 24.48534975719334,
+  "z": 1535.6927172685228
+ },
+ "ladder": [
+  [
+   0,
+   369196
+  ],
+  [
+   1,
+   583388
+  ],
+  [
+   2,
+   715197
+  ],
+  [
+   5,
+   1077470
+  ],
+  [
+   10,
+   1686932
+  ],
+  [
+   25,
+   3496856
+  ],
+  [
+   50,
+   6517075
+  ],
+  [
+   100,
+   12634827
+  ],
+  [
+   250,
+   30785296
+  ],
+  [
+   500,
+   61065928
+  ]
+ ],
+ "cells": {
+  "steps@0": {
+   "series": "A",
+   "kind": "reduction_steps",
+   "k": 0,
+   "export_bytes": 40522,
+   "window_instructions": [
+    368751,
+    369196,
+    369607
+   ],
+   "window_median": 369196,
+   "window_min": 368751,
+   "window_max": 369607,
+   "window_spread_pct": 0.232,
+   "process_total": [
+    183273088,
+    183273349,
+    183277136
+   ],
+   "seconds": 4.26,
+   "status": "ok"
+  },
+  "steps@1": {
+   "series": "A",
+   "kind": "reduction_steps",
+   "k": 1,
+   "export_bytes": 40522,
+   "window_instructions": [
+    582432,
+    583388,
+    583808
+   ],
+   "window_median": 583388,
+   "window_min": 582432,
+   "window_max": 583808,
+   "window_spread_pct": 0.236,
+   "process_total": [
+    183488110,
+    183488972,
+    183489363
+   ],
+   "seconds": 4.77,
+   "status": "ok"
+  },
+  "steps@2": {
+   "series": "A",
+   "kind": "reduction_steps",
+   "k": 2,
+   "export_bytes": 40660,
+   "window_instructions": [
+    715840,
+    715197,
+    714441
+   ],
+   "window_median": 715197,
+   "window_min": 714441,
+   "window_max": 715840,
+   "window_spread_pct": 0.196,
+   "process_total": [
+    183669515,
+    183674557,
+    183670788
+   ],
+   "seconds": 4.54,
+   "status": "ok"
+  },
+  "steps@5": {
+   "series": "A",
+   "kind": "reduction_steps",
+   "k": 5,
+   "export_bytes": 40660,
+   "window_instructions": [
+    1076430,
+    1077470,
+    1078513
+   ],
+   "window_median": 1077470,
+   "window_min": 1076430,
+   "window_max": 1078513,
+   "window_spread_pct": 0.193,
+   "process_total": [
+    184034069,
+    184037630,
+    183900620
+   ],
+   "seconds": 4.76,
+   "status": "ok"
+  },
+  "steps@10": {
+   "series": "A",
+   "kind": "reduction_steps",
+   "k": 10,
+   "export_bytes": 40661,
+   "window_instructions": [
+    1684174,
+    1687243,
+    1686932
+   ],
+   "window_median": 1686932,
+   "window_min": 1684174,
+   "window_max": 1687243,
+   "window_spread_pct": 0.182,
+   "process_total": [
+    184637249,
+    184639789,
+    184640965
+   ],
+   "seconds": 4.46,
+   "status": "ok"
+  },
+  "steps@25": {
+   "series": "A",
+   "kind": "reduction_steps",
+   "k": 25,
+   "export_bytes": 40661,
+   "window_instructions": [
+    3489159,
+    3496856,
+    3498165
+   ],
+   "window_median": 3496856,
+   "window_min": 3489159,
+   "window_max": 3498165,
+   "window_spread_pct": 0.258,
+   "process_total": [
+    186455574,
+    186454886,
+    186462693
+   ],
+   "seconds": 4.42,
+   "status": "ok"
+  },
+  "steps@50": {
+   "series": "A",
+   "kind": "reduction_steps",
+   "k": 50,
+   "export_bytes": 40661,
+   "window_instructions": [
+    6517075,
+    6543584,
+    6509208
+   ],
+   "window_median": 6517075,
+   "window_min": 6509208,
+   "window_max": 6543584,
+   "window_spread_pct": 0.527,
+   "process_total": [
+    189464538,
+    189493458,
+    189456285
+   ],
+   "seconds": 4.35,
+   "status": "ok"
+  },
+  "steps@100": {
+   "series": "A",
+   "kind": "reduction_steps",
+   "k": 100,
+   "export_bytes": 40662,
+   "window_instructions": [
+    12634827,
+    12648087,
+    12593390
+   ],
+   "window_median": 12634827,
+   "window_min": 12593390,
+   "window_max": 12648087,
+   "window_spread_pct": 0.433,
+   "process_total": [
+    195582870,
+    195335777,
+    195541134
+   ],
+   "seconds": 4.16,
+   "status": "ok"
+  },
+  "steps@250": {
+   "series": "A",
+   "kind": "reduction_steps",
+   "k": 250,
+   "export_bytes": 40662,
+   "window_instructions": [
+    30785296,
+    30787005,
+    30744373
+   ],
+   "window_median": 30785296,
+   "window_min": 30744373,
+   "window_max": 30787005,
+   "window_spread_pct": 0.138,
+   "process_total": [
+    213737265,
+    213740729,
+    213696082
+   ],
+   "seconds": 4.72,
+   "status": "ok"
+  },
+  "steps@500": {
+   "series": "A",
+   "kind": "reduction_steps",
+   "k": 500,
+   "export_bytes": 40662,
+   "window_instructions": [
+    61047087,
+    61065928,
+    61144822
+   ],
+   "window_median": 61065928,
+   "window_min": 61047087,
+   "window_max": 61144822,
+   "window_spread_pct": 0.16,
+   "process_total": [
+    244000427,
+    244018851,
+    244096769
+   ],
+   "seconds": 4.94,
+   "status": "ok"
+  },
+  "B-tiny": {
+   "series": "B",
+   "kind": "operand_width",
+   "a": 4,
+   "b": 3,
+   "expected": 7,
+   "export_bytes": 25950,
+   "window_instructions": [
+    234013,
+    233853,
+    234148
+   ],
+   "window_median": 234013,
+   "window_min": 233853,
+   "window_max": 234148,
+   "window_spread_pct": 0.126,
+   "process_total": [
+    175952661,
+    175950797,
+    175951422
+   ],
+   "seconds": 5.47,
+   "status": "ok"
+  },
+  "B-w64": {
+   "series": "B",
+   "kind": "operand_width",
+   "a": 18446744073709551615,
+   "b": 18446744073709551615,
+   "expected": 36893488147419103230,
+   "export_bytes": 25850,
+   "window_instructions": [
+    212538,
+    212539,
+    212651
+   ],
+   "window_median": 212539,
+   "window_min": 212538,
+   "window_max": 212651,
+   "window_spread_pct": 0.053,
+   "process_total": [
+    175916116,
+    175912873,
+    175915888
+   ],
+   "seconds": 4.84,
+   "status": "ok"
+  },
+  "B-w65": {
+   "series": "B",
+   "kind": "operand_width",
+   "a": 36893488147419103231,
+   "b": 36893488147419103231,
+   "expected": 73786976294838206462,
+   "export_bytes": 25850,
+   "window_instructions": [
+    212507,
+    212212,
+    212358
+   ],
+   "window_median": 212358,
+   "window_min": 212212,
+   "window_max": 212507,
+   "window_spread_pct": 0.139,
+   "process_total": [
+    175914080,
+    175917332,
+    175911552
+   ],
+   "seconds": 5.23,
+   "status": "ok"
+  }
+ }
+}

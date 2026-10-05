@@ -1,0 +1,33 @@
+F5 -- marginal cost of a kernel reduction step (2026-10-05)
+
+metric: instructions inside KERNEL_TIMING, boundary=target-declaration-replay-v1
+
+ k (steps)     instructions     delta vs k=0   implied/step
+         0          369,196                0              0
+         1          583,388          214,192        214,192
+         2          715,197          346,001        173,000
+         5        1,077,470          708,274        141,655
+        10        1,686,932        1,317,736        131,774
+        25        3,496,856        3,127,660        125,106
+        50        6,517,075        6,147,879        122,958
+       100       12,634,827       12,265,631        122,656
+       250       30,785,296       30,416,100        121,664
+       500       61,065,928       60,696,732        121,393
+
+fit: cost = 459,595 + (121,247 +- 79) * k
+     worst residual 24.49%   z(beta) = 1535.7
+
+VERDICTS (criteria pre-registered in scripts/f5_step_slope.py)
+  G2 spread            : worst 0.53% (threshold 5%) -> PASS
+  G3 H5.1 linearity    : worst residual 24.49% (threshold 5%) -> H5.1 REJECTED (cost is not linear in k)
+  G4 slope resolves    : beta = 121,247 +- 79 instr/step (z = 1535.7) -> slope MEASURED
+  G5 H5.2 alpha dominates: beta*kmax = 60,623,656 > alpha = 459,595 -> H5.2 REJECTED, steps dominate
+
+H5.3 CONTROL (one Nat.add, three operand widths)
+  B-tiny            234,013 instr  (operands tiny bits)
+  B-w64             212,539 instr  (operands w64 bits)
+  B-w65             212,358 instr  (operands w65 bits)
+  65-bit vs tiny-operand add: 0.91x
+  => the operand literal does NOT explain the plateau
+
+wrote /home/gris96/.hermes/workspace/repos/SAIR/lean-kernel-challenge/results/cost_model/f5_step_slope.json

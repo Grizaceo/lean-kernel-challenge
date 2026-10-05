@@ -1,0 +1,113 @@
+{
+ "status": "ok",
+ "generated": "2026-10-05T01:49:25-0300",
+ "metric": "instructions from KERNEL_TIMING, boundary=target-declaration-replay-v1",
+ "instrument": {
+  "timer": "/home/gris96/.hermes/workspace/repos/SAIR/lean-kernel-challenge/.verify/timer-kernel-local/.lake/build/bin/kernel",
+  "reps": 3,
+  "k": 100,
+  "scope": "user-space only (LK_EXCLUDE_KERNEL=1)"
+ },
+ "preregistered": {
+  "question": "is the ~121k/step tax universal or a property of the body?",
+  "criteria": {
+   "G1": "abort on failed cell",
+   "G2": "spread > 5%",
+   "G3": "(A) if body spread <= 5%, (B) if > 5%",
+   "G4": "empty must be <= heavy or nothing is adopted"
+  }
+ },
+ "adopted": "(B) BODY-DEPENDENT",
+ "body_ratio_max_over_min": 4.150733409750267,
+ "instrument_worst_spread_pct": 0.772,
+ "cells": {
+  "empty": {
+   "body": "acc",
+   "expected": 0,
+   "k": 100,
+   "export_bytes": 25737,
+   "window_instructions": [
+    10436833,
+    10424391,
+    10356399
+   ],
+   "window_median": 10424391,
+   "window_min": 10356399,
+   "window_max": 10436833,
+   "window_spread_pct": 0.772,
+   "process_total": [
+    186184069,
+    186173109,
+    186104087
+   ],
+   "seconds": 3.98,
+   "status": "ok"
+  },
+  "add1": {
+   "body": "acc + 1",
+   "expected": 100,
+   "k": 100,
+   "export_bytes": 40658,
+   "window_instructions": [
+    12613248,
+    12639352,
+    12556773
+   ],
+   "window_median": 12613248,
+   "window_min": 12556773,
+   "window_max": 12639352,
+   "window_spread_pct": 0.655,
+   "process_total": [
+    191458766,
+    195579449,
+    195498532
+   ],
+   "seconds": 3.95,
+   "status": "ok"
+  },
+  "heavy": {
+   "body": "acc + 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9 + 10 + 11 + 12 + 13 + 14 + 15 + 16",
+   "expected": 13600,
+   "k": 100,
+   "export_bytes": 44017,
+   "window_instructions": [
+    43248240,
+    43301589,
+    43268868
+   ],
+   "window_median": 43268868,
+   "window_min": 43248240,
+   "window_max": 43301589,
+   "window_spread_pct": 0.123,
+   "process_total": [
+    224674419,
+    227687324,
+    227657484
+   ],
+   "seconds": 4.03,
+   "status": "ok"
+  },
+  "xor1": {
+   "body": "acc ^^^ 1",
+   "expected": 0,
+   "k": 100,
+   "export_bytes": 724907,
+   "window_instructions": [
+    12656744,
+    12707917,
+    12666076
+   ],
+   "window_median": 12666076,
+   "window_min": 12656744,
+   "window_max": 12707917,
+   "window_spread_pct": 0.404,
+   "process_total": [
+    606774627,
+    609834829,
+    609694075
+   ],
+   "seconds": 3.99,
+   "status": "ok"
+  }
+ }
+}
