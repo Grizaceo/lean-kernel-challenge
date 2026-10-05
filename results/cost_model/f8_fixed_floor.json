@@ -1,0 +1,91 @@
+{
+ "status": "ok",
+ "generated": "2026-10-05T02:48:13-0300",
+ "metric": "instructions from KERNEL_TIMING, boundary=target-declaration-replay-v1",
+ "instrument": {
+  "timer": "/home/gris96/.hermes/workspace/repos/SAIR/lean-kernel-challenge/.verify/timer-kernel-local/.lake/build/bin/kernel",
+  "reps": 3,
+  "harness": "identical to F7: single mkAppN/mkApp2 mkEqRefl",
+  "G1_relaxed": "build failures recorded and the run CONTINUES; deliberate for this experiment only"
+ },
+ "arithmetic_reference": 245053,
+ "preregistered": {
+  "H8.1": "some declaration costs materially less than the Nat.add floor",
+  "H8.2": "the fixed cost is not specific to Nat.add",
+  "criteria": {
+   "G1": "RELAXED here (deliberate)",
+   "G2": "spread > 5%",
+   "G3": "reject H8.1 if min >= 0.90x ref",
+   "G4": "reject H8.2 if every no-arith cell >= 0.95x ref",
+   "G5": "always report the cheapest cell",
+   "G6": "record build failures, continue"
+  },
+  "explanations": {
+   "E1": "declaration shape / Eq normalisation -- overhead removable",
+   "E2": "GMP allocation -- intrinsic to Nat.add",
+   "E3": "kernel entry cost -- mostly intrinsic",
+   "E4": "instrument boundary artifact -- removable, and a trap"
+  }
+ },
+ "verdicts": {
+  "H8.1": "NOT rejected",
+  "H8.2": "NOT rejected"
+ },
+ "cells": {
+  "A-const-refl": {
+   "note": "E1/E4: reflexive eq between two literals, no arithmetic",
+   "status": "ok",
+   "window_median": 118230,
+   "window_min": 118198,
+   "window_max": 118247,
+   "window_spread_pct": 0.041,
+   "vs_ref": 0.4825,
+   "seconds": 2.96
+  },
+  "B-zero-const": {
+   "note": "E3: call a zero-argument constant",
+   "status": "ok",
+   "window_median": 177557,
+   "window_min": 176913,
+   "window_max": 177889,
+   "window_spread_pct": 0.55,
+   "vs_ref": 0.7246,
+   "seconds": 2.91
+  },
+  "C-nat-succ": {
+   "note": "E2: Nat.succ on a literal",
+   "status": "failed",
+   "error": "[build] rc=1: F8Probe.lean:5:13: error(lean.unknownIdentifier): Unknown identifier `Lean.mkApp1`"
+  },
+  "D-nat-sub": {
+   "note": "E2/E3: Nat.sub, what a packed DP needs",
+   "status": "ok",
+   "window_median": 234699,
+   "window_min": 234544,
+   "window_max": 235082,
+   "window_spread_pct": 0.229,
+   "vs_ref": 0.9577,
+   "seconds": 2.99
+  },
+  "E-const-unfold": {
+   "note": "E1: same total work, via a user constant",
+   "status": "ok",
+   "window_median": 177608,
+   "window_min": 177561,
+   "window_max": 178494,
+   "window_spread_pct": 0.525,
+   "vs_ref": 0.7248,
+   "seconds": 2.92
+  },
+  "F-nat-add-ref": {
+   "note": "reference: Nat.add on 4-bit literals (F7's cheapest arithmetic)",
+   "status": "ok",
+   "window_median": 208895,
+   "window_min": 208792,
+   "window_max": 209127,
+   "window_spread_pct": 0.16,
+   "vs_ref": 0.8524,
+   "seconds": 2.97
+  }
+ }
+}

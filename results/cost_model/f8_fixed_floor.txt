@@ -1,0 +1,21 @@
+F8 -- is the ~234k fixed per-operation cost attackable? (2026-10-05)
+
+F7 found cost = 244,590 + 37.1*lanes, and the intercept EXCEEDS a
+champion's whole slot (238,082). So this asks WHY the fixed cost exists,
+not how big it is: a removable overhead means more than one op per slot.
+
+cell               instructions   vs Nat.add ref  what it isolates
+A-const-refl            118,230           0.482x  E1/E4: reflexive eq between two literals, no arithmetic
+B-zero-const            177,557           0.725x  E3: call a zero-argument constant
+C-nat-succ               FAILED                   E2: Nat.succ on a literal
+D-nat-sub               234,699           0.958x  E2/E3: Nat.sub, what a packed DP needs
+E-const-unfold          177,608           0.725x  E1: same total work, via a user constant
+F-nat-add-ref           208,895           0.852x  reference: Nat.add on 4-bit literals (F7's cheapest arithmetic)
+
+VERDICTS (pre-registered in scripts/f8_fixed_floor.py)
+  G2 spread            : worst 0.55% (threshold 5%) -> PASS
+  G3 H8.1 cheaper path: cheapest = A-const-refl at 118,230 instr = 0.482x ref (< 0.90) -> H8.1 NOT rejected
+  G4 H8.2 not arith   : most expensive no-arith cell E-const-unfold = 177,608 = 0.725x ref (< 0.95) -> H8.2 NOT rejected, the overhead is not specific to arithmetic
+  G5 report cheapest : A-const-refl is the floor within this probe set
+
+wrote /home/gris96/.hermes/workspace/repos/SAIR/lean-kernel-challenge/results/cost_model/f8_fixed_floor.json
