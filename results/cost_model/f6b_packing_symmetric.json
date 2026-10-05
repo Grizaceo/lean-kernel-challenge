@@ -1,0 +1,142 @@
+{
+ "status": "ok",
+ "generated": "2026-10-05T02:29:39-0300",
+ "metric": "instructions from KERNEL_TIMING, boundary=target-declaration-replay-v1",
+ "instrument": {
+  "timer": "/home/gris96/.hermes/workspace/repos/SAIR/lean-kernel-challenge/.verify/timer-kernel-local/.lake/build/bin/kernel",
+  "reps": 3,
+  "harness": "symmetric: both arms use mkApp2 on a 2-arg call"
+ },
+ "preregistered": {
+  "H6.4": "symmetric harness reproduces (or beats) F6's margin",
+  "criteria": {
+   "G1": "abort on failed cell",
+   "G2": "spread > 5%",
+   "G3": "reject H6.4 if margin < F6's 22.40x",
+   "G4": "report any lane count where packing loses"
+  }
+ },
+ "verdicts": {
+  "H6.4": "NOT rejected"
+ },
+ "rows": [
+  {
+   "lanes": 1,
+   "packed": 234476,
+   "narrow": 583948,
+   "ratio": 2.490438253808492
+  },
+  {
+   "lanes": 4,
+   "packed": 242739,
+   "narrow": 958237,
+   "ratio": 3.947602157049341
+  },
+  {
+   "lanes": 16,
+   "packed": 243193,
+   "narrow": 2415743,
+   "ratio": 9.933439696043882
+  },
+  {
+   "lanes": 64,
+   "packed": 245646,
+   "narrow": 8222982,
+   "ratio": 33.4749273344569
+  }
+ ],
+ "cells": {
+  "packed1": {
+   "arm": "packed",
+   "lanes": 1,
+   "total_bits": 65,
+   "export_bytes": 25951,
+   "window_median": 234476,
+   "window_min": 234427,
+   "window_max": 234981,
+   "window_spread_pct": 0.236,
+   "seconds": 2.87,
+   "status": "ok"
+  },
+  "packed4": {
+   "arm": "packed",
+   "lanes": 4,
+   "total_bits": 260,
+   "export_bytes": 26131,
+   "window_median": 242739,
+   "window_min": 242332,
+   "window_max": 243344,
+   "window_spread_pct": 0.417,
+   "seconds": 2.86,
+   "status": "ok"
+  },
+  "packed16": {
+   "arm": "packed",
+   "lanes": 16,
+   "total_bits": 1040,
+   "export_bytes": 26836,
+   "window_median": 243193,
+   "window_min": 242944,
+   "window_max": 243384,
+   "window_spread_pct": 0.181,
+   "seconds": 2.87,
+   "status": "ok"
+  },
+  "packed64": {
+   "arm": "packed",
+   "lanes": 64,
+   "total_bits": 4160,
+   "export_bytes": 29656,
+   "window_median": 245646,
+   "window_min": 245304,
+   "window_max": 245837,
+   "window_spread_pct": 0.217,
+   "seconds": 2.61,
+   "status": "ok"
+  },
+  "narrow1": {
+   "arm": "narrow",
+   "lanes": 1,
+   "export_bytes": 40526,
+   "window_median": 583948,
+   "window_min": 583814,
+   "window_max": 584546,
+   "window_spread_pct": 0.125,
+   "seconds": 2.65,
+   "status": "ok"
+  },
+  "narrow4": {
+   "arm": "narrow",
+   "lanes": 4,
+   "export_bytes": 40664,
+   "window_median": 958237,
+   "window_min": 956919,
+   "window_max": 959498,
+   "window_spread_pct": 0.269,
+   "seconds": 2.86,
+   "status": "ok"
+  },
+  "narrow16": {
+   "arm": "narrow",
+   "lanes": 16,
+   "export_bytes": 40665,
+   "window_median": 2415743,
+   "window_min": 2408241,
+   "window_max": 2419311,
+   "window_spread_pct": 0.458,
+   "seconds": 2.86,
+   "status": "ok"
+  },
+  "narrow64": {
+   "arm": "narrow",
+   "lanes": 64,
+   "export_bytes": 40665,
+   "window_median": 8222982,
+   "window_min": 8222156,
+   "window_max": 8256747,
+   "window_spread_pct": 0.421,
+   "seconds": 2.99,
+   "status": "ok"
+  }
+ }
+}

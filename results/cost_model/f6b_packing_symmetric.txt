@@ -1,0 +1,17 @@
+F6b -- the packing margin, symmetric harness (2026-10-05)
+
+Both arms are a single mkApp2 call, so the only difference is how much
+work each call does. This removes F6's 39% four-argument overhead.
+
+  lanes        packed        narrow   narrow/packed   F6 said
+      1       234,476       583,948           2.49x     1.68x
+      4       242,739       958,237           3.95x     2.66x
+     16       243,193     2,415,743           9.93x     6.67x
+     64       245,646     8,222,982          33.47x    22.40x
+
+VERDICTS (pre-registered in scripts/f6b_packing_symmetric.py)
+  G2 spread            : worst 0.46% (threshold 5%) -> PASS
+  G3 H6.4 margin      : symmetric 64-lane margin = 33.47x >= F6's 22.40x -> H6.4 NOT rejected
+  G4 packing cheaper  : at every lane count tested -> PASS
+
+wrote /home/gris96/.hermes/workspace/repos/SAIR/lean-kernel-challenge/results/cost_model/f6b_packing_symmetric.json

@@ -1,0 +1,28 @@
+F6 -- where is the packing cliff? (2026-10-05)
+
+metric: instructions inside KERNEL_TIMING, boundary=target-declaration-replay-v1
+
+Series A -- one Nat.add vs operand width (F2 stopped at 65 bits)
+    bits      instructions    vs 4-bit             delta
+       4           234,175      1.000x                 0
+      16           234,798      1.003x               623
+      64           242,107      1.034x             7,932
+     256           249,614      1.066x            15,439
+    1024           250,358      1.069x            16,183
+    4096           252,324      1.078x            18,149
+   16384           262,507      1.121x            28,332
+
+Series B/C -- packing vs narrow arithmetic
+  lanes   packed(1 wide op)    narrow(N unfolds)   narrow/packed
+      1             347,741              584,260           1.68x
+      4             361,211              959,473           2.66x
+     16             361,711            2,414,200           6.67x
+     64             367,207            8,226,602          22.40x
+
+VERDICTS (criteria pre-registered in scripts/f6_packing_cliff.py)
+  G2 spread            : worst 0.40% (threshold 5%) -> PASS
+  G3 H6.1 flatness    : widest/narrowest = 1.121x (threshold 1.10) -> H6.1 REJECTED, no flat region
+  G4 H6.2 crossover   : packing wins at 64 lanes (narrow/packed = 22.40x) -> H6.2 NOT rejected
+  G6 H6.3 margin grows: 1 lanes 1.68x -> 64 lanes 22.40x -> H6.3 NOT rejected
+
+wrote /home/gris96/.hermes/workspace/repos/SAIR/lean-kernel-challenge/results/cost_model/f6_packing_cliff.json

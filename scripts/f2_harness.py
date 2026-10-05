@@ -59,11 +59,30 @@ def _fail(step: str, detail: str) -> ProbeError:
 
 
 def check_step(step: str, rc: int, out: str, *, panic_is_fatal: bool = True) -> str:
-    """Raise if a subprocess signalled trouble, whatever its exit code."""
+    """Raise if a subprocess signalled trouble, whatever its exit code.
+
+    The diagnostic is captured as a BLOCK, not as its first matching line.
+    Taking only the first line truncated Lean errors mid-sentence -- a real
+    `mkAppN` arity error reads "Application type mismatch: The argument" and
+    the actual cause ("has type List Expr but is expected to have type
+    Array Expr") is on the following lines. That cost three blind iterations
+    in F6 before I compiled the probe by hand to see the whole message.
+    """
     if panic_is_fatal and re.search(r"PANIC|error:|uncaught exception", out):
-        first = next((ln for ln in out.splitlines()
-                      if re.search(r"PANIC|error:|uncaught exception", ln)), "")
-        raise _fail(step, first.strip()[:400] or "diagnostic not captured")
+        lines = out.splitlines()
+        idx = next((i for i, ln in enumerate(lines)
+                    if re.search(r"PANIC|error:|uncaught exception", ln)), None)
+        if idx is None:
+            raise _fail(step, "diagnostic not captured")
+        # Lean's error spans from the `error:`/`PANIC` line up to the next blank
+        # line; the notes after it (Hints) are noise for the caller.
+        block = [lines[idx]]
+        for ln in lines[idx + 1:]:
+            if not ln.strip():
+                break
+            block.append(ln)
+        text = "\n".join(block).strip()
+        raise _fail(step, text[:1200] or "diagnostic not captured")
     if rc != 0:
         raise _fail(step, f"rc={rc}: {out.strip()[-400:]}")
     return out
