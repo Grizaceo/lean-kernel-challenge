@@ -1,0 +1,32 @@
+F13 bias calibration  (2026-10-07 07:37)
+============================================================
+P1: best pair n1=15, n2=17 local ratio 1.24365 vs official 1.24498 (err 0.11%) -> MATCH | k1=0.9941 k2=0.9930
+P2: best pair n1=23, n2=25 local ratio 1.16793 vs official 1.16740 (err 0.05%) -> MATCH | k1=0.9929 k2=0.9933
+P3: best pair n1=33, n2=36 local ratio 1.17943 vs official 1.17939 (err 0.00%) -> MATCH | k1=0.9910 k2=0.9911
+FIB: k(n=5000)=0.9913  k(n=20000)=0.9831  k(n=80000)=0.9525
+G9 process-wide repro vs F1 (vector match): PASS 1.0763 1.0002 0.9991 0.9999 1.0004 0.9994
+
+H13.1 constant window bias k: k=0.9927 (spread 0.3%) -> NOT rejected
+fib cross-check: consistent
+official floor+one-add = 200,295 + 122,520 = 322,815 vs champion slot 238,082 -> STILL EXCEEDS
+
+per-cell (window, process, spread):
+  866@P1:14  n=14      win=  297,346,498 proc=  935,144,372 spread=0.12%
+  866@P1:15  n=15      win=  336,038,473 proc=  973,494,582 spread=0.27%
+  866@P1:16  n=16      win=  377,218,018 proc=1,014,986,548 spread=0.18%
+  866@P1:17  n=17      win=  417,914,129 proc=1,055,925,397 spread=0.23%
+  866@P1:18  n=18      win=  465,562,051 proc=1,103,392,326 spread=0.22%
+  866@P2:22  n=22      win=  665,216,122 proc=1,301,077,981 spread=0.35%
+  866@P2:23  n=23      win=  716,020,961 proc=1,353,936,442 spread=0.13%
+  866@P2:24  n=24      win=  778,784,474 proc=1,416,498,770 spread=0.15%
+  866@P2:25  n=25      win=  836,259,453 proc=1,474,057,283 spread=0.12%
+  866@P2:26  n=26      win=  898,180,452 proc=1,535,786,901 spread=0.38%
+  866@P3:32  n=32      win=1,316,599,915 proc=1,954,369,788 spread=0.29%
+  866@P3:33  n=33      win=1,391,620,029 proc=2,029,390,987 spread=0.08%
+  866@P3:34  n=34      win=1,473,539,319 proc=2,107,000,310 spread=0.39%
+  866@P3:35  n=35      win=1,548,662,021 proc=2,188,210,706 spread=0.12%
+  866@P3:36  n=36      win=1,641,314,389 proc=2,277,586,908 spread=0.23%
+  fib:5000   n=5000    win=    7,942,960 proc=  391,618,356 spread=0.28%
+  fib:20000  n=20000   win=    9,124,031 proc=  410,883,037 spread=0.05%
+  fib:80000  n=80000   win=   10,984,322 proc=  550,114,394 spread=0.12%
+  trivial@16 n=16      win=      198,826 proc=  168,900,861 spread=0.14%
