@@ -67,8 +67,11 @@ anchors were validated):
                                  "returns the answer already in scope"]
   C4  `fun n => n + 1`        -- ONE add on opaque n (F12 chain@1 control, must match)
   C5  `fun n => if n = 16 then 0 else n`  -- one Decidable branch on n
-  C6  `fun n => Nat.rec n (fun _ acc => acc) (fun _ => 0)`  -- owns a recursor, computes
-                                 nothing (F10b A@0 control, must match ~356,917)
+  C6  `| 0 => 0 | n+1 => impl n`  -- OWNS a recursor AND unfolds it n times (returns 0).
+                                 This is NOT F10b's A@0 (which owns a recursor but does
+                                 k=0 unfolds, 356,917). C6 is the cost of a genuinely
+                                 recursing impl at full depth -- a NEW data point, so it
+                                 is NOT a control and carries no anchor.
   C7  `fun n => n * n`        -- one multiply on opaque n
   C8  `fun n => n - 1`        -- one Nat.sub on opaque n
   C9  `fun n => 2 ^ n`        -- one HPow on opaque n (the "expensive op" bound)
@@ -145,7 +148,7 @@ CELLS = [
     ("C3_closeover",   "def impl : Nat → Nat := fun _ => 42",                False, None,         True),
     ("C4_one_add",     "def impl : Nat → Nat := fun n => n + 1",             True,  F12_CHAIN1,   True),
     ("C5_decidable",   "def impl : Nat → Nat := fun n => if n = 16 then 0 else n", False, None,   True),
-    ("C6_recursor",    "def impl : Nat → Nat\n  | 0 => 0\n  | n + 1 => impl n",  True, F10B_A0, False),
+    ("C6_recursor",    "def impl : Nat → Nat\n  | 0 => 0\n  | n + 1 => impl n",  False, None, False),
     ("C7_mul",         "def impl : Nat → Nat := fun n => n * n",             False, None,         True),
     ("C8_sub",         "def impl : Nat → Nat := fun n => n - 1",             False, None,         True),
     ("C9_pow",         "def impl : Nat → Nat := fun n => 2 ^ n",             False, None,         True),
