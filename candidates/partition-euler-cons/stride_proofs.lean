@@ -80,3 +80,73 @@ theorem g1_succ (k : Nat) : ((k+1)*(3*(k+1)-1))/2 = (k*(3*k-1))/2 + (3*k+1) := b
     have h2 := Nat.eq_of_mul_eq_mul_left (show (0:Nat) < 2 by decide) h
     omega
   omega
+
+/-! ### g2 family (sibling of g1): PROVEN, same technique, real compile verified
+   `p_even_dg2`  : ∃ r, k*(3*k+1) = 2*r
+   `stride_pre2`: (k+1)*(3*(k+1)+1) = k*(3*k+1) + 2*(3*k+2)
+   `g2_succ`    : ((k+1)*(3*(k+1)+1))/2 = (k*(3*k+1))/2 + (3*k+2)
+
+PITFALL FOUND (numeric check first, then Lean): `(m+1)*(3*m+7)` expands to
+`m*(3*m+7) + (3*m+7)` — ONE extra term, not two. Also, after the product
+expansion the surviving `3*m*m` vs `m*3*m` difference is closed by a trailing
+omega once both sides are expanded with `Nat.mul_add`.
+-/
+
+-- g2 parity: k*(3*k+1) even
+theorem p_even_dg2 (k : Nat) : ∃ r, k * (3 * k + 1) = 2 * r := by
+  cases h2 : k % 2 with
+  | zero =>
+    have hdvd : 2 ∣ k := (Nat.dvd_iff_mod_eq_zero (n := k) (m := 2)).mpr h2
+    obtain ⟨q, hq⟩ := hdvd
+    refine ⟨q * (3*k+1), ?_⟩
+    rw [hq, Nat.mul_assoc]
+  | succ m =>
+    have h1 : k % 2 = 1 := by omega
+    obtain ⟨q, hk⟩ : ∃ q, k = 2*q+1 := by
+      have hd := Nat.div_add_mod k 2
+      refine ⟨k/2, ?_⟩
+      omega
+    subst hk
+    refine ⟨(2*q+1)*(3*q+2), ?_⟩
+    have h3 : 3*(2*q+1) = 6*q+3 := by omega
+    rw [h3]
+    have h4 : 6*q+3+1 = 2*(3*q+2) := by omega
+    rw [h4, Nat.mul_left_comm]
+
+-- g2 pre-division stride: (k+1)*(3*(k+1)+1) = k*(3*k+1) + 2*(3*k+2)
+theorem stride_pre2 (k : Nat) : (k+1)*(3*(k+1)+1) = k*(3*k+1) + 2*(3*k+2) := by
+  cases k with
+  | zero => decide
+  | succ m =>
+      have h1 : 3*(m+1) = 3*m+3 := by omega
+      have h2 : 3*(m+2) = 3*m+6 := by omega
+      rw [h1, h2]
+      have n1 : 3*m+6+1 = 3*m+7 := by omega
+      have n2 : 3*m+3+1 = 3*m+4 := by omega
+      have n3 : 3*m+3+2 = 3*m+5 := by omega
+      rw [n1, n2, n3]
+      have e1 : (m+2)*(3*m+7) = (m+1)*(3*m+7) + (3*m+7) := by rw [Nat.succ_mul]
+      have e3 : (m+1)*(3*m+7) = m*(3*m+7) + (3*m+7) := by rw [Nat.succ_mul]
+      have e4 : m*(3*m+7) = m*(3*m+4) + m*3 := by
+        have hb : 3*m+7 = 3*m+4+3 := by omega
+        rw [hb, Nat.mul_add]
+      rw [e1, e3, e4]
+      -- expand the remaining nonlinear products so omega sees linear terms only
+      have f1 : (m+1)*(3*m+4) = m*(3*m+4) + (3*m+4) := by rw [Nat.succ_mul]
+      rw [f1]
+      rw [Nat.mul_add, Nat.mul_add]
+      omega
+
+-- g2 target: ((k+1)*(3*(k+1)+1))/2 = (k*(3*k+1))/2 + (3*k+2)
+theorem g2_succ (k : Nat) : ((k+1)*(3*(k+1)+1))/2 = (k*(3*k+1))/2 + (3*k+2) := by
+  obtain ⟨r1, hr1⟩ := p_even_dg2 k
+  obtain ⟨r2, hr2⟩ := p_even_dg2 (k+1)
+  rw [hr1, hr2]
+  rw [Nat.mul_div_right r1 (by decide), Nat.mul_div_right r2 (by decide)]
+  have hs := stride_pre2 k
+  rw [hr1, hr2] at hs
+  have h : 2*r2 = 2*(r1 + (3*k+2)) := by
+    rw [Nat.mul_add]
+    exact hs
+  have h2 := Nat.eq_of_mul_eq_mul_left (show (0:Nat) < 2 by decide) h
+  omega
