@@ -136,19 +136,19 @@ CONTROL_TOL = 0.08             # G3
 
 GRID_N = [15, 16, 17]          # F13 P1 group, where the bias anchors were validated
 
-# Each cell: (tag, impl_body_lean_source, is_control, control_anchor, no_recursor)
-# `v` is the judge's witness variable, `n` is the input. The generator wraps this
-# body into `def impl : Nat → Nat := <body>` and proves `impl n = <witness>`.
+# Each cell: (tag, def_impl_lean_source, is_control, control_anchor, no_recursor)
+# `v` is the judge's witness literal, `n` is the input. The judge generator wraps
+# this into `impl n = v := Eq.refl v` via Lean.addDecl and replays it.
 CELLS = [
-    ("C1_floor",       "fun _ => 0",                                    True,  F11_TRIVIAL,  True),
-    ("C2_projection",  "fun v => v",                                    False, None,         True),
-    ("C3_closeover",   "fun _ => v",                                    False, None,         True),
-    ("C4_one_add",     "fun n => n + 1",                                True,  F12_CHAIN1,   True),
-    ("C5_decidable",   "fun n => if n = 16 then 0 else n",              False, None,         True),
-    ("C6_recursor",    "fun n => Nat.rec n (fun _ acc => acc) (fun _ => 0)", True, F10B_A0,  False),
-    ("C7_mul",         "fun n => n * n",                                False, None,         True),
-    ("C8_sub",         "fun n => n - 1",                                False, None,         True),
-    ("C9_pow",         "fun n => 2 ^ n",                                False, None,         True),
+    ("C1_floor",       "def impl : Nat → Nat := fun _ => 0",                 True,  F11_TRIVIAL,  True),
+    ("C2_projection",  "def impl : Nat → Nat := fun v => v",                 False, None,         True),
+    ("C3_closeover",   "def impl : Nat → Nat := fun _ => 42",                False, None,         True),
+    ("C4_one_add",     "def impl : Nat → Nat := fun n => n + 1",             True,  F12_CHAIN1,   True),
+    ("C5_decidable",   "def impl : Nat → Nat := fun n => if n = 16 then 0 else n", False, None,   True),
+    ("C6_recursor",    "def impl : Nat → Nat\n  | 0 => 0\n  | n + 1 => impl n",  True, F10B_A0, False),
+    ("C7_mul",         "def impl : Nat → Nat := fun n => n * n",             False, None,         True),
+    ("C8_sub",         "def impl : Nat → Nat := fun n => n - 1",             False, None,         True),
+    ("C9_pow",         "def impl : Nat → Nat := fun n => 2 ^ n",             False, None,         True),
 ]
 
 FORBIDDEN = ("Nat.rec", "termination_by", "match ", "brecOn")
@@ -162,10 +162,10 @@ FORBIDDEN = ("Nat.rec", "termination_by", "match ", "brecOn")
 BODY_VALUE = {
     "C1_floor":      lambda n: 0,
     "C2_projection": lambda n: n,
-    "C3_closeover":  lambda n: n,      # `fun _ => v` ignores n; v is bound to n's slot
+    "C3_closeover":  lambda n: 42,     # `fun _ => 42` ignores n, returns constant
     "C4_one_add":    lambda n: n + 1,
     "C5_decidable":  lambda n: 0 if n == 16 else n,
-    "C6_recursor":   lambda n: n,      # Nat.rec n (fun _ acc => acc) (fun _ => 0) = n
+    "C6_recursor":   lambda n: 0,      # | 0 => 0 | n+1 => impl n  reduces to 0 (F10b A)
     "C7_mul":        lambda n: n * n,
     "C8_sub":        lambda n: n - 1,  # Nat.sub saturates at 0; n>=1 here so n-1
     "C9_pow":        lambda n: 2 ** n,
@@ -192,19 +192,21 @@ def oracle_check() -> None:
 
 
 def stage_source(body: str, no_recursor: bool) -> str:
-    """Build the Submission.lean for one cell (G5 no-recursor assertion)."""
+    """Build the Submission.lean for one cell (G5 no-recursor assertion).
+
+    Mirrors F11/F12: stage ONLY `def impl` with no `impl_correct` and no `sorry`
+    (a `sorry` trips `warningAsError` and fails the build). The judge's generator
+    builds its own `impl n = v := Eq.refl v` theorem independently, so no
+    contestant-side proof is needed to price the shape.
+    """
     if no_recursor:
         for frag in FORBIDDEN:
             assert frag not in body, f"G5 violated: {frag!r} in body {body!r}"
     return (
-        "import Spec\n"
-        "set_option linter.unusedSimpArgs false\n"
+        "import Spec\n\n"
         "namespace Submission\n"
-        f"def impl : Nat → Nat := {body}\n"
-        "theorem impl_correct : ∀ n, impl n = partitionSpec n := by\n"
-        "  intro n\n"
-        "  sorry\n"
-        "end Submission\n"
+        f"{body}\n"
+        "\nend Submission\n"
     )
 
 
