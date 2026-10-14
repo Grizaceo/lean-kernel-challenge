@@ -1,0 +1,782 @@
+{
+  "status": "ok",
+  "k_bias": 0.9927,
+  "champion_slot": 238082,
+  "grid_n": [
+    15,
+    16,
+    17
+  ],
+  "medians_by_tag": {
+    "C1_ofnat_0": 198674,
+    "C2_raw_0": 191390,
+    "C3_hadd_1": 307069,
+    "C4_natadd_ofnat1": 222109,
+    "C5_natadd_raw1": 208769,
+    "C6_natadd_raw1_wrap": 232078,
+    "C7_natadd_chain5_raw": 224246,
+    "C8_ite_decidable": 364209,
+    "C9_boolrec_beq_raw": 198637,
+    "C10_natrec_raw": 544773,
+    "C11_kronecker_raw": 317099,
+    "C12_kronecker_wrap": 340463
+  },
+  "elaborated_pp": {
+    "C1_ofnat_0": "def Submission.impl : Nat \u2192 Nat :=\nfun (x : Nat) => @OfNat.ofNat.{0} Nat (nat_lit 0) (instOfNatNat (nat_lit 0))",
+    "C2_raw_0": "def Submission.impl : Nat \u2192 Nat :=\nfun (x : Nat) => nat_lit 0",
+    "C3_hadd_1": "def Submission.impl : Nat \u2192 Nat :=\nfun (n : Nat) =>\n  @HAdd.hAdd.{0, 0, 0} Nat Nat Nat (@instHAdd.{0} Nat instAddNat) n\n    (@OfNat.ofNat.{0} Nat (nat_lit 1) (instOfNatNat (nat_lit 1)))",
+    "C4_natadd_ofnat1": "def Submission.impl : Nat \u2192 Nat :=\nfun (n : Nat) => Nat.add n (@OfNat.ofNat.{0} Nat (nat_lit 1) (instOfNatNat (nat_lit 1)))",
+    "C5_natadd_raw1": "def Submission.impl : Nat \u2192 Nat :=\nfun (n : Nat) => Nat.add n (nat_lit 1)",
+    "C6_natadd_raw1_wrap": "def Submission.impl : Nat \u2192 Nat :=\nfun (n : Nat) =>\n  have r : Nat := Nat.add n (nat_lit 1);\n  @OfNat.ofNat.{0} Nat r (instOfNatNat r)",
+    "C7_natadd_chain5_raw": "def Submission.impl : Nat \u2192 Nat :=\nfun (n : Nat) =>\n  Nat.add (Nat.add (Nat.add (Nat.add (Nat.add n (nat_lit 1)) (nat_lit 1)) (nat_lit 1)) (nat_lit 1)) (nat_lit 1)",
+    "C8_ite_decidable": "def Submission.impl : Nat \u2192 Nat :=\nfun (n : Nat) =>\n  @ite.{1} Nat (@Eq.{1} Nat n (@OfNat.ofNat.{0} Nat (nat_lit 16) (instOfNatNat (nat_lit 16))))\n    (instDecidableEqNat n (@OfNat.ofNat.{0} Nat (nat_lit 16) (instOfNatNat (nat_lit 16))))\n    (@OfNat.ofNat.{0} Nat (nat_lit 0) (instOfNatNat (nat_lit 0))) n",
+    "C9_boolrec_beq_raw": "def Submission.impl : Nat \u2192 Nat :=\nfun (n : Nat) => @Bool.rec.{1} (fun (x : Bool) => Nat) n (nat_lit 0) (Nat.beq n (nat_lit 16))",
+    "C10_natrec_raw": "def Submission.impl : Nat \u2192 Nat :=\nfun (n : Nat) => @Nat.rec.{1} (fun (x : Nat) => Nat) (nat_lit 0) (fun (x acc : Nat) => acc) n",
+    "C11_kronecker_raw": "def Submission.impl : Nat \u2192 Nat :=\nfun (n : Nat) =>\n  have num : Nat := Nat.shiftLeft (nat_lit 1) (Nat.mul (nat_lit 15) (Nat.add (nat_lit 35) n));\n  Nat.land (Nat.div num Submission.eulerDenom) (nat_lit 32767)",
+    "C12_kronecker_wrap": "def Submission.impl : Nat \u2192 Nat :=\nfun (n : Nat) =>\n  have num : Nat := Nat.shiftLeft (nat_lit 1) (Nat.mul (nat_lit 15) (Nat.add (nat_lit 35) n));\n  have r : Nat := Nat.land (Nat.div num Submission.eulerDenom) (nat_lit 32767);\n  @OfNat.ofNat.{0} Nat r (instOfNatNat r)"
+  },
+  "cells": [
+    {
+      "tag": "C1_ofnat_0",
+      "n": 15,
+      "v": 0,
+      "status": "ok",
+      "window_median": 198774,
+      "window_min": 198615,
+      "window_max": 199191,
+      "window_spread_pct": 0.29,
+      "process_total": [
+        168671432,
+        168673467,
+        168675570
+      ],
+      "elaborated_pp": "def Submission.impl : Nat \u2192 Nat :=\nfun (x : Nat) => @OfNat.ofNat.{0} Nat (nat_lit 0) (instOfNatNat (nat_lit 0))",
+      "seconds": 3.72,
+      "body": "def impl : Nat \u2192 Nat := fun _ => 0",
+      "is_control": true,
+      "control_anchor": 199012
+    },
+    {
+      "tag": "C1_ofnat_0",
+      "n": 16,
+      "v": 0,
+      "status": "ok",
+      "window_median": 198674,
+      "window_min": 198222,
+      "window_max": 198890,
+      "window_spread_pct": 0.336,
+      "process_total": [
+        168674994,
+        168673792,
+        168671895
+      ],
+      "elaborated_pp": "def Submission.impl : Nat \u2192 Nat :=\nfun (x : Nat) => @OfNat.ofNat.{0} Nat (nat_lit 0) (instOfNatNat (nat_lit 0))",
+      "seconds": 2.63,
+      "body": "def impl : Nat \u2192 Nat := fun _ => 0",
+      "is_control": true,
+      "control_anchor": 199012
+    },
+    {
+      "tag": "C1_ofnat_0",
+      "n": 17,
+      "v": 0,
+      "status": "ok",
+      "window_median": 198336,
+      "window_min": 198193,
+      "window_max": 198746,
+      "window_spread_pct": 0.279,
+      "process_total": [
+        168673523,
+        168675187,
+        168674109
+      ],
+      "elaborated_pp": "def Submission.impl : Nat \u2192 Nat :=\nfun (x : Nat) => @OfNat.ofNat.{0} Nat (nat_lit 0) (instOfNatNat (nat_lit 0))",
+      "seconds": 2.72,
+      "body": "def impl : Nat \u2192 Nat := fun _ => 0",
+      "is_control": true,
+      "control_anchor": 199012
+    },
+    {
+      "tag": "C2_raw_0",
+      "n": 15,
+      "v": 0,
+      "status": "ok",
+      "window_median": 191279,
+      "window_min": 191219,
+      "window_max": 191992,
+      "window_spread_pct": 0.404,
+      "process_total": [
+        168632882,
+        168634631,
+        168637619
+      ],
+      "elaborated_pp": "def Submission.impl : Nat \u2192 Nat :=\nfun (x : Nat) => nat_lit 0",
+      "seconds": 3.51,
+      "body": "def impl : Nat \u2192 Nat := fun _ => (nat_lit 0)",
+      "is_control": false,
+      "control_anchor": null
+    },
+    {
+      "tag": "C2_raw_0",
+      "n": 16,
+      "v": 0,
+      "status": "ok",
+      "window_median": 191390,
+      "window_min": 190800,
+      "window_max": 191479,
+      "window_spread_pct": 0.355,
+      "process_total": [
+        168633523,
+        168634060,
+        168633539
+      ],
+      "elaborated_pp": "def Submission.impl : Nat \u2192 Nat :=\nfun (x : Nat) => nat_lit 0",
+      "seconds": 2.3,
+      "body": "def impl : Nat \u2192 Nat := fun _ => (nat_lit 0)",
+      "is_control": false,
+      "control_anchor": null
+    },
+    {
+      "tag": "C2_raw_0",
+      "n": 17,
+      "v": 0,
+      "status": "ok",
+      "window_median": 191740,
+      "window_min": 191572,
+      "window_max": 191818,
+      "window_spread_pct": 0.128,
+      "process_total": [
+        168637122,
+        168637763,
+        168637514
+      ],
+      "elaborated_pp": "def Submission.impl : Nat \u2192 Nat :=\nfun (x : Nat) => nat_lit 0",
+      "seconds": 2.07,
+      "body": "def impl : Nat \u2192 Nat := fun _ => (nat_lit 0)",
+      "is_control": false,
+      "control_anchor": null
+    },
+    {
+      "tag": "C3_hadd_1",
+      "n": 15,
+      "v": 16,
+      "status": "ok",
+      "window_median": 308874,
+      "window_min": 308196,
+      "window_max": 308902,
+      "window_spread_pct": 0.229,
+      "process_total": [
+        181051064,
+        181055520,
+        181052171
+      ],
+      "elaborated_pp": "def Submission.impl : Nat \u2192 Nat :=\nfun (n : Nat) =>\n  @HAdd.hAdd.{0, 0, 0} Nat Nat Nat (@instHAdd.{0} Nat instAddNat) n\n    (@OfNat.ofNat.{0} Nat (nat_lit 1) (instOfNatNat (nat_lit 1)))",
+      "seconds": 2.55,
+      "body": "def impl : Nat \u2192 Nat := fun n => n + 1",
+      "is_control": true,
+      "control_anchor": 305916
+    },
+    {
+      "tag": "C3_hadd_1",
+      "n": 16,
+      "v": 17,
+      "status": "ok",
+      "window_median": 307069,
+      "window_min": 306880,
+      "window_max": 307141,
+      "window_spread_pct": 0.085,
+      "process_total": [
+        181050427,
+        181052656,
+        181050787
+      ],
+      "elaborated_pp": "def Submission.impl : Nat \u2192 Nat :=\nfun (n : Nat) =>\n  @HAdd.hAdd.{0, 0, 0} Nat Nat Nat (@instHAdd.{0} Nat instAddNat) n\n    (@OfNat.ofNat.{0} Nat (nat_lit 1) (instOfNatNat (nat_lit 1)))",
+      "seconds": 2.06,
+      "body": "def impl : Nat \u2192 Nat := fun n => n + 1",
+      "is_control": true,
+      "control_anchor": 305916
+    },
+    {
+      "tag": "C3_hadd_1",
+      "n": 17,
+      "v": 18,
+      "status": "ok",
+      "window_median": 306304,
+      "window_min": 305855,
+      "window_max": 306415,
+      "window_spread_pct": 0.183,
+      "process_total": [
+        181051395,
+        181052707,
+        181050955
+      ],
+      "elaborated_pp": "def Submission.impl : Nat \u2192 Nat :=\nfun (n : Nat) =>\n  @HAdd.hAdd.{0, 0, 0} Nat Nat Nat (@instHAdd.{0} Nat instAddNat) n\n    (@OfNat.ofNat.{0} Nat (nat_lit 1) (instOfNatNat (nat_lit 1)))",
+      "seconds": 2.07,
+      "body": "def impl : Nat \u2192 Nat := fun n => n + 1",
+      "is_control": true,
+      "control_anchor": 305916
+    },
+    {
+      "tag": "C4_natadd_ofnat1",
+      "n": 15,
+      "v": 16,
+      "status": "ok",
+      "window_median": 223618,
+      "window_min": 223316,
+      "window_max": 223761,
+      "window_spread_pct": 0.199,
+      "process_total": [
+        176066166,
+        176064371,
+        176066865
+      ],
+      "elaborated_pp": "def Submission.impl : Nat \u2192 Nat :=\nfun (n : Nat) => Nat.add n (@OfNat.ofNat.{0} Nat (nat_lit 1) (instOfNatNat (nat_lit 1)))",
+      "seconds": 2.46,
+      "body": "def impl : Nat \u2192 Nat := fun n => Nat.add n 1",
+      "is_control": false,
+      "control_anchor": null
+    },
+    {
+      "tag": "C4_natadd_ofnat1",
+      "n": 16,
+      "v": 17,
+      "status": "ok",
+      "window_median": 222109,
+      "window_min": 221999,
+      "window_max": 222374,
+      "window_spread_pct": 0.169,
+      "process_total": [
+        176060526,
+        176063956,
+        176063724
+      ],
+      "elaborated_pp": "def Submission.impl : Nat \u2192 Nat :=\nfun (n : Nat) => Nat.add n (@OfNat.ofNat.{0} Nat (nat_lit 1) (instOfNatNat (nat_lit 1)))",
+      "seconds": 2.15,
+      "body": "def impl : Nat \u2192 Nat := fun n => Nat.add n 1",
+      "is_control": false,
+      "control_anchor": null
+    },
+    {
+      "tag": "C4_natadd_ofnat1",
+      "n": 17,
+      "v": 18,
+      "status": "ok",
+      "window_median": 220944,
+      "window_min": 220610,
+      "window_max": 221144,
+      "window_spread_pct": 0.242,
+      "process_total": [
+        176058489,
+        176064166,
+        176060086
+      ],
+      "elaborated_pp": "def Submission.impl : Nat \u2192 Nat :=\nfun (n : Nat) => Nat.add n (@OfNat.ofNat.{0} Nat (nat_lit 1) (instOfNatNat (nat_lit 1)))",
+      "seconds": 2.12,
+      "body": "def impl : Nat \u2192 Nat := fun n => Nat.add n 1",
+      "is_control": false,
+      "control_anchor": null
+    },
+    {
+      "tag": "C5_natadd_raw1",
+      "n": 15,
+      "v": 16,
+      "status": "ok",
+      "window_median": 210277,
+      "window_min": 210192,
+      "window_max": 210464,
+      "window_spread_pct": 0.129,
+      "process_total": [
+        175974310,
+        175972968,
+        175975429
+      ],
+      "elaborated_pp": "def Submission.impl : Nat \u2192 Nat :=\nfun (n : Nat) => Nat.add n (nat_lit 1)",
+      "seconds": 2.48,
+      "body": "def impl : Nat \u2192 Nat := fun n => Nat.add n (nat_lit 1)",
+      "is_control": false,
+      "control_anchor": null
+    },
+    {
+      "tag": "C5_natadd_raw1",
+      "n": 16,
+      "v": 17,
+      "status": "ok",
+      "window_median": 208769,
+      "window_min": 208726,
+      "window_max": 208953,
+      "window_spread_pct": 0.109,
+      "process_total": [
+        175971910,
+        175972667,
+        175968742
+      ],
+      "elaborated_pp": "def Submission.impl : Nat \u2192 Nat :=\nfun (n : Nat) => Nat.add n (nat_lit 1)",
+      "seconds": 2.24,
+      "body": "def impl : Nat \u2192 Nat := fun n => Nat.add n (nat_lit 1)",
+      "is_control": false,
+      "control_anchor": null
+    },
+    {
+      "tag": "C5_natadd_raw1",
+      "n": 17,
+      "v": 18,
+      "status": "ok",
+      "window_median": 207764,
+      "window_min": 207585,
+      "window_max": 207850,
+      "window_spread_pct": 0.128,
+      "process_total": [
+        175967816,
+        175967672,
+        175973591
+      ],
+      "elaborated_pp": "def Submission.impl : Nat \u2192 Nat :=\nfun (n : Nat) => Nat.add n (nat_lit 1)",
+      "seconds": 2.06,
+      "body": "def impl : Nat \u2192 Nat := fun n => Nat.add n (nat_lit 1)",
+      "is_control": false,
+      "control_anchor": null
+    },
+    {
+      "tag": "C6_natadd_raw1_wrap",
+      "n": 15,
+      "v": 16,
+      "status": "ok",
+      "window_median": 233289,
+      "window_min": 233253,
+      "window_max": 233292,
+      "window_spread_pct": 0.017,
+      "process_total": [
+        176122304,
+        176122586,
+        176118001
+      ],
+      "elaborated_pp": "def Submission.impl : Nat \u2192 Nat :=\nfun (n : Nat) =>\n  have r : Nat := Nat.add n (nat_lit 1);\n  @OfNat.ofNat.{0} Nat r (instOfNatNat r)",
+      "seconds": 2.33,
+      "body": "def impl : Nat \u2192 Nat := fun n =>\n  let r := Nat.add n (nat_lit 1)\n  @OfNat.ofNat Nat r (instOfNatNat r)",
+      "is_control": false,
+      "control_anchor": null
+    },
+    {
+      "tag": "C6_natadd_raw1_wrap",
+      "n": 16,
+      "v": 17,
+      "status": "ok",
+      "window_median": 232078,
+      "window_min": 231949,
+      "window_max": 232091,
+      "window_spread_pct": 0.061,
+      "process_total": [
+        176119868,
+        176121814,
+        176118193
+      ],
+      "elaborated_pp": "def Submission.impl : Nat \u2192 Nat :=\nfun (n : Nat) =>\n  have r : Nat := Nat.add n (nat_lit 1);\n  @OfNat.ofNat.{0} Nat r (instOfNatNat r)",
+      "seconds": 2.0,
+      "body": "def impl : Nat \u2192 Nat := fun n =>\n  let r := Nat.add n (nat_lit 1)\n  @OfNat.ofNat Nat r (instOfNatNat r)",
+      "is_control": false,
+      "control_anchor": null
+    },
+    {
+      "tag": "C6_natadd_raw1_wrap",
+      "n": 17,
+      "v": 18,
+      "status": "ok",
+      "window_median": 231041,
+      "window_min": 230790,
+      "window_max": 232084,
+      "window_spread_pct": 0.56,
+      "process_total": [
+        176115849,
+        176116467,
+        176119164
+      ],
+      "elaborated_pp": "def Submission.impl : Nat \u2192 Nat :=\nfun (n : Nat) =>\n  have r : Nat := Nat.add n (nat_lit 1);\n  @OfNat.ofNat.{0} Nat r (instOfNatNat r)",
+      "seconds": 1.98,
+      "body": "def impl : Nat \u2192 Nat := fun n =>\n  let r := Nat.add n (nat_lit 1)\n  @OfNat.ofNat Nat r (instOfNatNat r)",
+      "is_control": false,
+      "control_anchor": null
+    },
+    {
+      "tag": "C7_natadd_chain5_raw",
+      "n": 15,
+      "v": 20,
+      "status": "ok",
+      "window_median": 224289,
+      "window_min": 224226,
+      "window_max": 224380,
+      "window_spread_pct": 0.069,
+      "process_total": [
+        176115896,
+        176116649,
+        176115080
+      ],
+      "elaborated_pp": "def Submission.impl : Nat \u2192 Nat :=\nfun (n : Nat) =>\n  Nat.add (Nat.add (Nat.add (Nat.add (Nat.add n (nat_lit 1)) (nat_lit 1)) (nat_lit 1)) (nat_lit 1)) (nat_lit 1)",
+      "seconds": 2.57,
+      "body": "def impl : Nat \u2192 Nat := fun n =>\n  Nat.add (Nat.add (Nat.add (Nat.add (Nat.add n (nat_lit 1)) (nat_lit 1)) (nat_lit 1)) (nat_lit 1)) (nat_lit 1)",
+      "is_control": false,
+      "control_anchor": null
+    },
+    {
+      "tag": "C7_natadd_chain5_raw",
+      "n": 16,
+      "v": 21,
+      "status": "ok",
+      "window_median": 223179,
+      "window_min": 223001,
+      "window_max": 223567,
+      "window_spread_pct": 0.254,
+      "process_total": [
+        176115645,
+        176111579,
+        176113678
+      ],
+      "elaborated_pp": "def Submission.impl : Nat \u2192 Nat :=\nfun (n : Nat) =>\n  Nat.add (Nat.add (Nat.add (Nat.add (Nat.add n (nat_lit 1)) (nat_lit 1)) (nat_lit 1)) (nat_lit 1)) (nat_lit 1)",
+      "seconds": 2.0,
+      "body": "def impl : Nat \u2192 Nat := fun n =>\n  Nat.add (Nat.add (Nat.add (Nat.add (Nat.add n (nat_lit 1)) (nat_lit 1)) (nat_lit 1)) (nat_lit 1)) (nat_lit 1)",
+      "is_control": false,
+      "control_anchor": null
+    },
+    {
+      "tag": "C7_natadd_chain5_raw",
+      "n": 17,
+      "v": 22,
+      "status": "ok",
+      "window_median": 224246,
+      "window_min": 224180,
+      "window_max": 224480,
+      "window_spread_pct": 0.134,
+      "process_total": [
+        176116196,
+        176114403,
+        176118266
+      ],
+      "elaborated_pp": "def Submission.impl : Nat \u2192 Nat :=\nfun (n : Nat) =>\n  Nat.add (Nat.add (Nat.add (Nat.add (Nat.add n (nat_lit 1)) (nat_lit 1)) (nat_lit 1)) (nat_lit 1)) (nat_lit 1)",
+      "seconds": 2.06,
+      "body": "def impl : Nat \u2192 Nat := fun n =>\n  Nat.add (Nat.add (Nat.add (Nat.add (Nat.add n (nat_lit 1)) (nat_lit 1)) (nat_lit 1)) (nat_lit 1)) (nat_lit 1)",
+      "is_control": false,
+      "control_anchor": null
+    },
+    {
+      "tag": "C8_ite_decidable",
+      "n": 15,
+      "v": 15,
+      "status": "ok",
+      "window_median": 364209,
+      "window_min": 364160,
+      "window_max": 364994,
+      "window_spread_pct": 0.229,
+      "process_total": [
+        207230459,
+        207227367,
+        207227755
+      ],
+      "elaborated_pp": "def Submission.impl : Nat \u2192 Nat :=\nfun (n : Nat) =>\n  @ite.{1} Nat (@Eq.{1} Nat n (@OfNat.ofNat.{0} Nat (nat_lit 16) (instOfNatNat (nat_lit 16))))\n    (instDecidableEqNat n (@OfNat.ofNat.{0} Nat (nat_lit 16) (instOfNatNat (nat_lit 16))))\n    (@OfNat.ofNat.{0} Nat (nat_lit 0) (instOfNatNat (nat_lit 0))) n",
+      "seconds": 2.56,
+      "body": "def impl : Nat \u2192 Nat := fun n => if n = 16 then 0 else n",
+      "is_control": true,
+      "control_anchor": 362584
+    },
+    {
+      "tag": "C8_ite_decidable",
+      "n": 16,
+      "v": 0,
+      "status": "ok",
+      "window_median": 374638,
+      "window_min": 374409,
+      "window_max": 375929,
+      "window_spread_pct": 0.406,
+      "process_total": [
+        207182942,
+        207198356,
+        207180648
+      ],
+      "elaborated_pp": "def Submission.impl : Nat \u2192 Nat :=\nfun (n : Nat) =>\n  @ite.{1} Nat (@Eq.{1} Nat n (@OfNat.ofNat.{0} Nat (nat_lit 16) (instOfNatNat (nat_lit 16))))\n    (instDecidableEqNat n (@OfNat.ofNat.{0} Nat (nat_lit 16) (instOfNatNat (nat_lit 16))))\n    (@OfNat.ofNat.{0} Nat (nat_lit 0) (instOfNatNat (nat_lit 0))) n",
+      "seconds": 2.01,
+      "body": "def impl : Nat \u2192 Nat := fun n => if n = 16 then 0 else n",
+      "is_control": true,
+      "control_anchor": 362584
+    },
+    {
+      "tag": "C8_ite_decidable",
+      "n": 17,
+      "v": 17,
+      "status": "ok",
+      "window_median": 363680,
+      "window_min": 363468,
+      "window_max": 363964,
+      "window_spread_pct": 0.136,
+      "process_total": [
+        207232366,
+        207224778,
+        207222417
+      ],
+      "elaborated_pp": "def Submission.impl : Nat \u2192 Nat :=\nfun (n : Nat) =>\n  @ite.{1} Nat (@Eq.{1} Nat n (@OfNat.ofNat.{0} Nat (nat_lit 16) (instOfNatNat (nat_lit 16))))\n    (instDecidableEqNat n (@OfNat.ofNat.{0} Nat (nat_lit 16) (instOfNatNat (nat_lit 16))))\n    (@OfNat.ofNat.{0} Nat (nat_lit 0) (instOfNatNat (nat_lit 0))) n",
+      "seconds": 2.06,
+      "body": "def impl : Nat \u2192 Nat := fun n => if n = 16 then 0 else n",
+      "is_control": true,
+      "control_anchor": 362584
+    },
+    {
+      "tag": "C9_boolrec_beq_raw",
+      "n": 15,
+      "v": 15,
+      "status": "ok",
+      "window_median": 198274,
+      "window_min": 198258,
+      "window_max": 198538,
+      "window_spread_pct": 0.141,
+      "process_total": [
+        178207902,
+        178208445,
+        178208286
+      ],
+      "elaborated_pp": "def Submission.impl : Nat \u2192 Nat :=\nfun (n : Nat) => @Bool.rec.{1} (fun (x : Bool) => Nat) n (nat_lit 0) (Nat.beq n (nat_lit 16))",
+      "seconds": 2.41,
+      "body": "noncomputable def impl : Nat \u2192 Nat := fun n =>\n  Bool.rec n (nat_lit 0) (Nat.beq n (nat_lit 16))",
+      "is_control": false,
+      "control_anchor": null
+    },
+    {
+      "tag": "C9_boolrec_beq_raw",
+      "n": 16,
+      "v": 0,
+      "status": "ok",
+      "window_median": 216943,
+      "window_min": 216751,
+      "window_max": 217074,
+      "window_spread_pct": 0.149,
+      "process_total": [
+        178255963,
+        178256842,
+        178259076
+      ],
+      "elaborated_pp": "def Submission.impl : Nat \u2192 Nat :=\nfun (n : Nat) => @Bool.rec.{1} (fun (x : Bool) => Nat) n (nat_lit 0) (Nat.beq n (nat_lit 16))",
+      "seconds": 2.15,
+      "body": "noncomputable def impl : Nat \u2192 Nat := fun n =>\n  Bool.rec n (nat_lit 0) (Nat.beq n (nat_lit 16))",
+      "is_control": false,
+      "control_anchor": null
+    },
+    {
+      "tag": "C9_boolrec_beq_raw",
+      "n": 17,
+      "v": 17,
+      "status": "ok",
+      "window_median": 198637,
+      "window_min": 198624,
+      "window_max": 198640,
+      "window_spread_pct": 0.008,
+      "process_total": [
+        178209792,
+        178204687,
+        178208641
+      ],
+      "elaborated_pp": "def Submission.impl : Nat \u2192 Nat :=\nfun (n : Nat) => @Bool.rec.{1} (fun (x : Bool) => Nat) n (nat_lit 0) (Nat.beq n (nat_lit 16))",
+      "seconds": 2.04,
+      "body": "noncomputable def impl : Nat \u2192 Nat := fun n =>\n  Bool.rec n (nat_lit 0) (Nat.beq n (nat_lit 16))",
+      "is_control": false,
+      "control_anchor": null
+    },
+    {
+      "tag": "C10_natrec_raw",
+      "n": 15,
+      "v": 0,
+      "status": "ok",
+      "window_median": 524194,
+      "window_min": 521055,
+      "window_max": 524723,
+      "window_spread_pct": 0.7,
+      "process_total": [
+        169181796,
+        169187651,
+        169186119
+      ],
+      "elaborated_pp": "def Submission.impl : Nat \u2192 Nat :=\nfun (n : Nat) => @Nat.rec.{1} (fun (x : Nat) => Nat) (nat_lit 0) (fun (x acc : Nat) => acc) n",
+      "seconds": 2.44,
+      "body": "noncomputable def impl : Nat \u2192 Nat := fun n =>\n  @Nat.rec (fun _ => Nat) (nat_lit 0) (fun _ acc => acc) n",
+      "is_control": false,
+      "control_anchor": null
+    },
+    {
+      "tag": "C10_natrec_raw",
+      "n": 16,
+      "v": 0,
+      "status": "ok",
+      "window_median": 544773,
+      "window_min": 544186,
+      "window_max": 546099,
+      "window_spread_pct": 0.351,
+      "process_total": [
+        169210079,
+        169209839,
+        169208944
+      ],
+      "elaborated_pp": "def Submission.impl : Nat \u2192 Nat :=\nfun (n : Nat) => @Nat.rec.{1} (fun (x : Nat) => Nat) (nat_lit 0) (fun (x acc : Nat) => acc) n",
+      "seconds": 2.21,
+      "body": "noncomputable def impl : Nat \u2192 Nat := fun n =>\n  @Nat.rec (fun _ => Nat) (nat_lit 0) (fun _ acc => acc) n",
+      "is_control": false,
+      "control_anchor": null
+    },
+    {
+      "tag": "C10_natrec_raw",
+      "n": 17,
+      "v": 0,
+      "status": "ok",
+      "window_median": 563238,
+      "window_min": 562700,
+      "window_max": 565002,
+      "window_spread_pct": 0.409,
+      "process_total": [
+        169227648,
+        169225465,
+        169229650
+      ],
+      "elaborated_pp": "def Submission.impl : Nat \u2192 Nat :=\nfun (n : Nat) => @Nat.rec.{1} (fun (x : Nat) => Nat) (nat_lit 0) (fun (x acc : Nat) => acc) n",
+      "seconds": 2.15,
+      "body": "noncomputable def impl : Nat \u2192 Nat := fun n =>\n  @Nat.rec (fun _ => Nat) (nat_lit 0) (fun _ acc => acc) n",
+      "is_control": false,
+      "control_anchor": null
+    },
+    {
+      "tag": "C11_kronecker_raw",
+      "n": 15,
+      "v": 176,
+      "status": "ok",
+      "window_median": 317099,
+      "window_min": 316498,
+      "window_max": 317541,
+      "window_spread_pct": 0.329,
+      "process_total": [
+        595926840,
+        595969514,
+        595971588
+      ],
+      "elaborated_pp": "def Submission.impl : Nat \u2192 Nat :=\nfun (n : Nat) =>\n  have num : Nat := Nat.shiftLeft (nat_lit 1) (Nat.mul (nat_lit 15) (Nat.add (nat_lit 35) n));\n  Nat.land (Nat.div num Submission.eulerDenom) (nat_lit 32767)",
+      "seconds": 2.8,
+      "body": "def eulerDenom : Nat :=\n  let leading := Nat.shiftLeft (Nat.sub (Nat.shiftLeft (nat_lit 32767) (nat_lit 15)) (nat_lit 1)) (nat_lit 495)\n  let positive := Nat.add leading (Nat.shiftLeft (nat_lit 1) (nat_lit 420))\n  let rectangle := Nat.shiftLeft\n    (Nat.mul (Nat.sub (Nat.shiftLeft (nat_lit 1) (nat_lit 150)) (nat_lit 1))\n             (Nat.sub (Nat.shiftLeft (nat_lit 1) (nat_lit 105)) (nat_lit 1))) (nat_lit 195)\n  Nat.sub (Nat.add (Nat.add positive rectangle) (Nat.shiftLeft (nat_lit 1) (nat_lit 135))) (nat_lit 1)\ndef impl : Nat \u2192 Nat := fun n =>\n  let num := Nat.shiftLeft (nat_lit 1) (Nat.mul (nat_lit 15) (Nat.add (nat_lit 35) n))\n  Nat.land (Nat.div num eulerDenom) (nat_lit 32767)",
+      "is_control": false,
+      "control_anchor": null
+    },
+    {
+      "tag": "C11_kronecker_raw",
+      "n": 16,
+      "v": 231,
+      "status": "ok",
+      "window_median": 319050,
+      "window_min": 318681,
+      "window_max": 319533,
+      "window_spread_pct": 0.267,
+      "process_total": [
+        595903259,
+        595932098,
+        595951149
+      ],
+      "elaborated_pp": "def Submission.impl : Nat \u2192 Nat :=\nfun (n : Nat) =>\n  have num : Nat := Nat.shiftLeft (nat_lit 1) (Nat.mul (nat_lit 15) (Nat.add (nat_lit 35) n));\n  Nat.land (Nat.div num Submission.eulerDenom) (nat_lit 32767)",
+      "seconds": 2.23,
+      "body": "def eulerDenom : Nat :=\n  let leading := Nat.shiftLeft (Nat.sub (Nat.shiftLeft (nat_lit 32767) (nat_lit 15)) (nat_lit 1)) (nat_lit 495)\n  let positive := Nat.add leading (Nat.shiftLeft (nat_lit 1) (nat_lit 420))\n  let rectangle := Nat.shiftLeft\n    (Nat.mul (Nat.sub (Nat.shiftLeft (nat_lit 1) (nat_lit 150)) (nat_lit 1))\n             (Nat.sub (Nat.shiftLeft (nat_lit 1) (nat_lit 105)) (nat_lit 1))) (nat_lit 195)\n  Nat.sub (Nat.add (Nat.add positive rectangle) (Nat.shiftLeft (nat_lit 1) (nat_lit 135))) (nat_lit 1)\ndef impl : Nat \u2192 Nat := fun n =>\n  let num := Nat.shiftLeft (nat_lit 1) (Nat.mul (nat_lit 15) (Nat.add (nat_lit 35) n))\n  Nat.land (Nat.div num eulerDenom) (nat_lit 32767)",
+      "is_control": false,
+      "control_anchor": null
+    },
+    {
+      "tag": "C11_kronecker_raw",
+      "n": 17,
+      "v": 297,
+      "status": "ok",
+      "window_median": 317038,
+      "window_min": 316796,
+      "window_max": 317213,
+      "window_spread_pct": 0.132,
+      "process_total": [
+        595888179,
+        595899391,
+        595926735
+      ],
+      "elaborated_pp": "def Submission.impl : Nat \u2192 Nat :=\nfun (n : Nat) =>\n  have num : Nat := Nat.shiftLeft (nat_lit 1) (Nat.mul (nat_lit 15) (Nat.add (nat_lit 35) n));\n  Nat.land (Nat.div num Submission.eulerDenom) (nat_lit 32767)",
+      "seconds": 2.31,
+      "body": "def eulerDenom : Nat :=\n  let leading := Nat.shiftLeft (Nat.sub (Nat.shiftLeft (nat_lit 32767) (nat_lit 15)) (nat_lit 1)) (nat_lit 495)\n  let positive := Nat.add leading (Nat.shiftLeft (nat_lit 1) (nat_lit 420))\n  let rectangle := Nat.shiftLeft\n    (Nat.mul (Nat.sub (Nat.shiftLeft (nat_lit 1) (nat_lit 150)) (nat_lit 1))\n             (Nat.sub (Nat.shiftLeft (nat_lit 1) (nat_lit 105)) (nat_lit 1))) (nat_lit 195)\n  Nat.sub (Nat.add (Nat.add positive rectangle) (Nat.shiftLeft (nat_lit 1) (nat_lit 135))) (nat_lit 1)\ndef impl : Nat \u2192 Nat := fun n =>\n  let num := Nat.shiftLeft (nat_lit 1) (Nat.mul (nat_lit 15) (Nat.add (nat_lit 35) n))\n  Nat.land (Nat.div num eulerDenom) (nat_lit 32767)",
+      "is_control": false,
+      "control_anchor": null
+    },
+    {
+      "tag": "C12_kronecker_wrap",
+      "n": 15,
+      "v": 176,
+      "status": "ok",
+      "window_median": 340282,
+      "window_min": 340224,
+      "window_max": 340535,
+      "window_spread_pct": 0.091,
+      "process_total": [
+        596042186,
+        595992072,
+        596082707
+      ],
+      "elaborated_pp": "def Submission.impl : Nat \u2192 Nat :=\nfun (n : Nat) =>\n  have num : Nat := Nat.shiftLeft (nat_lit 1) (Nat.mul (nat_lit 15) (Nat.add (nat_lit 35) n));\n  have r : Nat := Nat.land (Nat.div num Submission.eulerDenom) (nat_lit 32767);\n  @OfNat.ofNat.{0} Nat r (instOfNatNat r)",
+      "seconds": 2.78,
+      "body": "def eulerDenom : Nat :=\n  let leading := Nat.shiftLeft (Nat.sub (Nat.shiftLeft (nat_lit 32767) (nat_lit 15)) (nat_lit 1)) (nat_lit 495)\n  let positive := Nat.add leading (Nat.shiftLeft (nat_lit 1) (nat_lit 420))\n  let rectangle := Nat.shiftLeft\n    (Nat.mul (Nat.sub (Nat.shiftLeft (nat_lit 1) (nat_lit 150)) (nat_lit 1))\n             (Nat.sub (Nat.shiftLeft (nat_lit 1) (nat_lit 105)) (nat_lit 1))) (nat_lit 195)\n  Nat.sub (Nat.add (Nat.add positive rectangle) (Nat.shiftLeft (nat_lit 1) (nat_lit 135))) (nat_lit 1)\ndef impl : Nat \u2192 Nat := fun n =>\n  let num := Nat.shiftLeft (nat_lit 1) (Nat.mul (nat_lit 15) (Nat.add (nat_lit 35) n))\n  let r := Nat.land (Nat.div num eulerDenom) (nat_lit 32767)\n  @OfNat.ofNat Nat r (instOfNatNat r)",
+      "is_control": false,
+      "control_anchor": null
+    },
+    {
+      "tag": "C12_kronecker_wrap",
+      "n": 16,
+      "v": 231,
+      "status": "ok",
+      "window_median": 342835,
+      "window_min": 342527,
+      "window_max": 342841,
+      "window_spread_pct": 0.092,
+      "process_total": [
+        595983068,
+        596038928,
+        596039925
+      ],
+      "elaborated_pp": "def Submission.impl : Nat \u2192 Nat :=\nfun (n : Nat) =>\n  have num : Nat := Nat.shiftLeft (nat_lit 1) (Nat.mul (nat_lit 15) (Nat.add (nat_lit 35) n));\n  have r : Nat := Nat.land (Nat.div num Submission.eulerDenom) (nat_lit 32767);\n  @OfNat.ofNat.{0} Nat r (instOfNatNat r)",
+      "seconds": 2.29,
+      "body": "def eulerDenom : Nat :=\n  let leading := Nat.shiftLeft (Nat.sub (Nat.shiftLeft (nat_lit 32767) (nat_lit 15)) (nat_lit 1)) (nat_lit 495)\n  let positive := Nat.add leading (Nat.shiftLeft (nat_lit 1) (nat_lit 420))\n  let rectangle := Nat.shiftLeft\n    (Nat.mul (Nat.sub (Nat.shiftLeft (nat_lit 1) (nat_lit 150)) (nat_lit 1))\n             (Nat.sub (Nat.shiftLeft (nat_lit 1) (nat_lit 105)) (nat_lit 1))) (nat_lit 195)\n  Nat.sub (Nat.add (Nat.add positive rectangle) (Nat.shiftLeft (nat_lit 1) (nat_lit 135))) (nat_lit 1)\ndef impl : Nat \u2192 Nat := fun n =>\n  let num := Nat.shiftLeft (nat_lit 1) (Nat.mul (nat_lit 15) (Nat.add (nat_lit 35) n))\n  let r := Nat.land (Nat.div num eulerDenom) (nat_lit 32767)\n  @OfNat.ofNat Nat r (instOfNatNat r)",
+      "is_control": false,
+      "control_anchor": null
+    },
+    {
+      "tag": "C12_kronecker_wrap",
+      "n": 17,
+      "v": 297,
+      "status": "ok",
+      "window_median": 340463,
+      "window_min": 339820,
+      "window_max": 340498,
+      "window_spread_pct": 0.199,
+      "process_total": [
+        596176902,
+        596084813,
+        596072407
+      ],
+      "elaborated_pp": "def Submission.impl : Nat \u2192 Nat :=\nfun (n : Nat) =>\n  have num : Nat := Nat.shiftLeft (nat_lit 1) (Nat.mul (nat_lit 15) (Nat.add (nat_lit 35) n));\n  have r : Nat := Nat.land (Nat.div num Submission.eulerDenom) (nat_lit 32767);\n  @OfNat.ofNat.{0} Nat r (instOfNatNat r)",
+      "seconds": 2.4,
+      "body": "def eulerDenom : Nat :=\n  let leading := Nat.shiftLeft (Nat.sub (Nat.shiftLeft (nat_lit 32767) (nat_lit 15)) (nat_lit 1)) (nat_lit 495)\n  let positive := Nat.add leading (Nat.shiftLeft (nat_lit 1) (nat_lit 420))\n  let rectangle := Nat.shiftLeft\n    (Nat.mul (Nat.sub (Nat.shiftLeft (nat_lit 1) (nat_lit 150)) (nat_lit 1))\n             (Nat.sub (Nat.shiftLeft (nat_lit 1) (nat_lit 105)) (nat_lit 1))) (nat_lit 195)\n  Nat.sub (Nat.add (Nat.add positive rectangle) (Nat.shiftLeft (nat_lit 1) (nat_lit 135))) (nat_lit 1)\ndef impl : Nat \u2192 Nat := fun n =>\n  let num := Nat.shiftLeft (nat_lit 1) (Nat.mul (nat_lit 15) (Nat.add (nat_lit 35) n))\n  let r := Nat.land (Nat.div num eulerDenom) (nat_lit 32767)\n  @OfNat.ofNat Nat r (instOfNatNat r)",
+      "is_control": false,
+      "control_anchor": null
+    }
+  ],
+  "verdicts": [
+    "G3 control C1_ofnat_0             n=15: got 198,774 vs anchor 199,012 (rel 0.12%) -> PASS",
+    "G3 control C1_ofnat_0             n=16: got 198,674 vs anchor 199,012 (rel 0.17%) -> PASS",
+    "G3 control C1_ofnat_0             n=17: got 198,336 vs anchor 199,012 (rel 0.34%) -> PASS",
+    "G3 control C3_hadd_1              n=15: got 308,874 vs anchor 305,916 (rel 0.97%) -> PASS",
+    "G3 control C3_hadd_1              n=16: got 307,069 vs anchor 305,916 (rel 0.38%) -> PASS",
+    "G3 control C3_hadd_1              n=17: got 306,304 vs anchor 305,916 (rel 0.13%) -> PASS",
+    "G3 control C8_ite_decidable       n=15: got 364,209 vs anchor 362,584 (rel 0.45%) -> PASS",
+    "G3 control C8_ite_decidable       n=16: got 374,638 vs anchor 362,584 (rel 3.32%) -> PASS",
+    "G3 control C8_ite_decidable       n=17: got 363,680 vs anchor 362,584 (rel 0.30%) -> PASS",
+    "G2 spread: worst 0.70% (threshold 5%) -> PASS",
+    "G5 elaborated-term checks: PASS on all 12 probes",
+    "Delta HAdd (C3_hadd_1 - C4_natadd_ofnat1): +84,960 instr (0.723x)",
+    "Delta OfNat arg (C4_natadd_ofnat1 - C5_natadd_raw1): +13,340 instr (0.940x)",
+    "Delta total add (C3_hadd_1 -> C5_natadd_raw1): 307,069 -> 208,769 (-98,300 instr, 0.680x)",
+    "Delta total add wrapped (C3_hadd_1 -> C6_natadd_raw1_wrap): 307,069 -> 232,078 (-74,991 instr, 0.756x)",
+    "Marginal per raw Nat.add ((C7 - C5)/4): 3,869.2 instr/add (vs F12 HAdd marginal 20,140)",
+    "Delta Branch (C8_ite_decidable -> C9_boolrec_beq_raw): 364,209 -> 198,637 (-165,572 instr, 0.545x)",
+    "Delta Recursor n=16 (F14 C6 brecOn 1,882,457 -> C10_natrec_raw): 1,882,457 -> 544,773 (0.289x)",
+    "Kronecker partition(n) raw (C11): local=317,099, official=319,431 (vs champion slot 238,082)",
+    "Kronecker partition(n) wrapped (C12): local=340,463, official=342,967 (vs champion slot 238,082)"
+  ]
+}

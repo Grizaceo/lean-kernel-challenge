@@ -1,0 +1,41 @@
+F16 primitives vs typeclasses  (2026-10-14 00:47)
+========================================================================
+k_bias (F13) = 0.9927, champion slot = 238,082
+grid n = [15, 16, 17]
+
+CELL                        LOCAL MED   OFFICIAL EST     VS C1     SLOT
+------------------------------------------------------------------------
+C1_ofnat_0                    198,674        200,135    1.000x     FITS
+C2_raw_0                      191,390        192,797    0.963x     FITS
+C3_hadd_1                     307,069        309,327    1.546x  exceeds
+C4_natadd_ofnat1              222,109        223,742    1.118x     FITS
+C5_natadd_raw1                208,769        210,304    1.051x     FITS
+C6_natadd_raw1_wrap           232,078        233,785    1.168x     FITS
+C7_natadd_chain5_raw          224,246        225,895    1.129x     FITS
+C8_ite_decidable              364,209        366,887    1.833x  exceeds
+C9_boolrec_beq_raw            198,637        200,098    1.000x     FITS
+C10_natrec_raw                544,773        548,779    2.742x  exceeds
+C11_kronecker_raw             317,099        319,431    1.596x  exceeds
+C12_kronecker_wrap            340,463        342,967    1.714x  exceeds
+
+VERDICTS
+  G3 control C1_ofnat_0             n=15: got 198,774 vs anchor 199,012 (rel 0.12%) -> PASS
+  G3 control C1_ofnat_0             n=16: got 198,674 vs anchor 199,012 (rel 0.17%) -> PASS
+  G3 control C1_ofnat_0             n=17: got 198,336 vs anchor 199,012 (rel 0.34%) -> PASS
+  G3 control C3_hadd_1              n=15: got 308,874 vs anchor 305,916 (rel 0.97%) -> PASS
+  G3 control C3_hadd_1              n=16: got 307,069 vs anchor 305,916 (rel 0.38%) -> PASS
+  G3 control C3_hadd_1              n=17: got 306,304 vs anchor 305,916 (rel 0.13%) -> PASS
+  G3 control C8_ite_decidable       n=15: got 364,209 vs anchor 362,584 (rel 0.45%) -> PASS
+  G3 control C8_ite_decidable       n=16: got 374,638 vs anchor 362,584 (rel 3.32%) -> PASS
+  G3 control C8_ite_decidable       n=17: got 363,680 vs anchor 362,584 (rel 0.30%) -> PASS
+  G2 spread: worst 0.70% (threshold 5%) -> PASS
+  G5 elaborated-term checks: PASS on all 12 probes
+  Delta HAdd (C3_hadd_1 - C4_natadd_ofnat1): +84,960 instr (0.723x)
+  Delta OfNat arg (C4_natadd_ofnat1 - C5_natadd_raw1): +13,340 instr (0.940x)
+  Delta total add (C3_hadd_1 -> C5_natadd_raw1): 307,069 -> 208,769 (-98,300 instr, 0.680x)
+  Delta total add wrapped (C3_hadd_1 -> C6_natadd_raw1_wrap): 307,069 -> 232,078 (-74,991 instr, 0.756x)
+  Marginal per raw Nat.add ((C7 - C5)/4): 3,869.2 instr/add (vs F12 HAdd marginal 20,140)
+  Delta Branch (C8_ite_decidable -> C9_boolrec_beq_raw): 364,209 -> 198,637 (-165,572 instr, 0.545x)
+  Delta Recursor n=16 (F14 C6 brecOn 1,882,457 -> C10_natrec_raw): 1,882,457 -> 544,773 (0.289x)
+  Kronecker partition(n) raw (C11): local=317,099, official=319,431 (vs champion slot 238,082)
+  Kronecker partition(n) wrapped (C12): local=340,463, official=342,967 (vs champion slot 238,082)
