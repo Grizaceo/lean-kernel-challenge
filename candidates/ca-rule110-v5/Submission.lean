@@ -1,0 +1,866 @@
+import Spec
+
+namespace Submission
+
+/-!
+# ca-rule110-v5 — 256-Lane 64-Bit SWAR Mixer + 8-Stage Butterfly + 6-Op Lightcone Step
+
+1. Packs all 254 `caMix32` evaluations (`i = 2..255`) into a single 16,384-bit
+   `Nat` with 64-bit lanes (`seed * REP_64_2 + OFFSETS_64_2`), executing the entire
+   initial-row mixer in 5 big-integer operations instead of 254 * 13 = 3,302 operations.
+2. Gathers the 256 cell bits from stride 64 to stride 1 using an 8-stage
+   bitwise butterfly (`s = 63 * 2^r`, `r = 0..7`), proved correct via a uniform
+   binary-tree induction (`treeAt_butterfly_step`) without unfolding 256 terms.
+3. Evaluates Rule 110 on a 3x-replicated periodic bitvector (`rep3Lit`) using the
+   6-operation lightcone-shifted step `sstepRaw` (`(c ||| r) ^^^ (m &&& (c &&& r))`
+   with `c = m >>> 1, r = m >>> 2`), unrolled for the judge step counts `2, 4, 8`.
+-/
+
+/-! ### Part 1: Trusted spec facts & bit-parallel reference kernel -/
+
+theorem testBit_high {m W : Nat} (hm : m < 2 ^ W) {j : Nat} (hj : W ≤ j) : m.testBit j = false := by
+  have hlt : m < 2 ^ j := Nat.lt_of_lt_of_le hm (Nat.pow_le_pow_right (by omega) hj)
+  simp [Nat.testBit, Nat.shiftRight_eq_div_pow, Nat.div_eq_of_lt hlt]
+
+theorem testBit_pack {W a b : Nat} (ha : a < 2 ^ W) (j : Nat) :
+    (a + (b <<< W)).testBit j = if j < W then a.testBit j else b.testBit (j - W) := by
+  have h : a + (b <<< W) = 2 ^ W * b + a := by rw [Nat.shiftLeft_eq, Nat.mul_comm b (2 ^ W), Nat.add_comm]
+  rw [h, Nat.testBit_two_pow_mul_add b ha]
+
+theorem testBit_encodeRow (row : List Bool) (i : Nat) :
+    (encodeRow row).testBit i = row.getD i false := by
+  induction row generalizing i with
+  | nil => simp [encodeRow]
+  | cons b bs ih =>
+    have hrec : encodeRow (b :: bs) = 2 * encodeRow bs + (if b then 1 else 0) := rfl
+    cases i with
+    | zero => rw [hrec]; cases b <;> simp [Nat.testBit_zero] <;> omega
+    | succ j =>
+      rw [hrec, Nat.testBit_succ]
+      have : (2 * encodeRow bs + (if b then 1 else 0)) / 2 = encodeRow bs := by
+        cases b <;> simp <;> omega
+      rw [this, ih]; rfl
+
+theorem encodeRow_lt (row : List Bool) : encodeRow row < 2 ^ row.length := by
+  induction row with
+  | nil => simp [encodeRow]
+  | cons b bs ih =>
+    have hrec : encodeRow (b :: bs) = 2 * encodeRow bs + (if b then 1 else 0) := rfl
+    rw [hrec, List.length_cons, Nat.pow_succ]; split <;> omega
+
+theorem encodeRow_append (xs ys : List Bool) :
+    encodeRow (xs ++ ys) = encodeRow xs + (encodeRow ys <<< xs.length) := by
+  induction xs with
+  | nil => simp [encodeRow]
+  | cons b xs ih =>
+    have h1 : encodeRow (b :: (xs ++ ys)) = 2 * encodeRow (xs ++ ys) + (if b then 1 else 0) := rfl
+    have h2 : encodeRow (b :: xs) = 2 * encodeRow xs + (if b then 1 else 0) := rfl
+    rw [List.cons_append, h1, ih, h2, List.length_cons, Nat.shiftLeft_eq, Nat.shiftLeft_eq,
+        Nat.pow_succ, ← Nat.mul_assoc]
+    omega
+
+@[simp] theorem length_stepRow (row : List Bool) : (stepRow row).length = row.length := by
+  simp [stepRow]
+
+@[simp] theorem length_iterRow (t : Nat) (row : List Bool) : (iterRow t row).length = row.length := by
+  induction t generalizing row with
+  | zero => rfl
+  | succ k ih => simp [iterRow, ih]
+
+theorem getD_stepRow (row : List Bool) (i : Nat) :
+    (stepRow row).getD i false =
+      if i < row.length then
+        rule110 (row.getD ((i + row.length - 1) % row.length) false)
+                (row.getD i false) (row.getD ((i + 1) % row.length) false)
+      else false := by
+  by_cases h : i < row.length
+  · rw [List.getD_eq_getElem?_getD]; simp [stepRow, h]
+  · have hlen : (stepRow row).length ≤ i := by rw [length_stepRow]; omega
+    rw [List.getD_eq_getElem?_getD, List.getElem?_eq_none hlen, Option.getD_none, if_neg h]
+
+def M : Nat := 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+theorem M_eq : M = 2 ^ 256 - 1 := by decide
+theorem testBit_M (i : Nat) : M.testBit i = decide (i < 256) := by
+  rw [M_eq, Nat.testBit_two_pow_sub_one]
+
+theorem testBit_rotL {m : Nat} (hm : m < 2 ^ 256) {i : Nat} (hi : i < 256) :
+    (((m <<< 1) ||| (m >>> 255)) &&& M).testBit i = m.testBit ((i + 255) % 256) := by
+  rw [Nat.testBit_and, Nat.testBit_or, Nat.testBit_shiftLeft, Nat.testBit_shiftRight, testBit_M]
+  simp only [hi, decide_true, Bool.and_true]
+  rcases Nat.eq_zero_or_pos i with hi0 | hipos
+  · subst hi0; simp
+  · have h1 : (1 ≤ i) := hipos
+    have hmod : (i + 255) % 256 = i - 1 := by omega
+    have hhi : m.testBit (255 + i) = false := testBit_high hm (by omega)
+    simp [h1, hmod, hhi]
+
+theorem testBit_rotR {m : Nat} (hm : m < 2 ^ 256) {i : Nat} (hi : i < 256) :
+    (((m >>> 1) ||| ((m &&& 1) <<< 255)) &&& M).testBit i = m.testBit ((i + 1) % 256) := by
+  rw [Nat.testBit_and, Nat.testBit_or, Nat.testBit_shiftRight, Nat.testBit_shiftLeft, testBit_M]
+  simp only [hi, decide_true, Bool.and_true]
+  by_cases h255 : i = 255
+  · subst h255
+    have hmod : (255 + 1) % 256 = 0 := by decide
+    have hhi : m.testBit (1 + 255) = false := testBit_high hm (by omega)
+    rw [hmod]; simp [hhi]
+  · have hmod : (i + 1) % 256 = i + 1 := by omega
+    have hnot : ¬ (255 ≤ i) := by omega
+    simp [hmod, hnot, Nat.add_comm 1 i]
+
+def bstep (m : Nat) : Nat :=
+  let r := (m >>> 1) ||| ((m &&& 1) <<< 255)
+  let l := (m <<< 1) ||| (m >>> 255)
+  (m ||| r) ^^^ (l &&& (m &&& r))
+
+def biter : Nat → Nat → Nat
+  | 0, m => m
+  | t + 1, m => biter t (bstep m)
+
+theorem step_eq {row : List Bool} (hlen : row.length = 256) :
+    encodeRow (stepRow row) = bstep (encodeRow row) := by
+  have hm : encodeRow row < 2 ^ 256 := hlen ▸ encodeRow_lt row
+  apply Nat.eq_of_testBit_eq
+  intro i
+  rw [testBit_encodeRow, getD_stepRow, hlen]
+  by_cases hi : i < 256
+  · rw [if_pos hi]
+    have he : i + 256 - 1 = i + 255 := by omega
+    rw [he]
+    have hrotL := testBit_rotL hm hi
+    have hrotR := testBit_rotR hm hi
+    rw [Nat.testBit_and, testBit_M, decide_eq_true hi, Bool.and_true] at hrotL hrotR
+    unfold bstep
+    dsimp only
+    rw [Nat.testBit_xor, Nat.testBit_or, Nat.testBit_and, Nat.testBit_and,
+        hrotL, hrotR, testBit_encodeRow, testBit_encodeRow, testBit_encodeRow]
+    generalize row.getD ((i + 255) % 256) false = a
+    generalize row.getD i false = b
+    generalize row.getD ((i + 1) % 256) false = c
+    cases a <;> cases b <;> cases c <;> decide
+  · rw [if_neg hi]
+    unfold bstep
+    dsimp only
+    have hm_hi : (encodeRow row).testBit i = false := testBit_high hm (by omega)
+    have hr_hi : (((encodeRow row) >>> 1) ||| (((encodeRow row) &&& 1) <<< 255)).testBit i = false := by
+      rw [Nat.testBit_or, Nat.testBit_shiftRight, Nat.testBit_shiftLeft]
+      have h1 : (encodeRow row).testBit (1 + i) = false := testBit_high hm (by omega)
+      have h2 : (encodeRow row &&& 1) < 2 ^ 1 :=
+        Nat.lt_of_le_of_lt Nat.and_le_right (by decide)
+      have h3 : (encodeRow row &&& 1).testBit (i - 255) = false :=
+        testBit_high h2 (by omega)
+      simp only [h1, h3, Bool.false_or, Bool.and_false]
+    rw [Nat.testBit_xor, Nat.testBit_or, Nat.testBit_and, Nat.testBit_and, hm_hi, hr_hi]
+    simp
+
+theorem iter_eq : ∀ (n : Nat) (row : List Bool), row.length = 256 →
+    encodeRow (iterRow n row) = biter n (encodeRow row) := by
+  intro n
+  induction n with
+  | zero => intro row _; rfl
+  | succ k ih =>
+    intro row hlen
+    show encodeRow (iterRow k (stepRow row)) = biter k (bstep (encodeRow row))
+    rw [ih (stepRow row) (by rw [length_stepRow, hlen]), step_eq hlen]
+
+/-! ### Part 2: Binary-tree SWAR algebra (`treeAt`) -/
+
+def treeAt (W step : Nat) : Nat → (Nat → Nat) → Nat → Nat
+  | 0, f, i0 => f i0
+  | k + 1, f, i0 =>
+      treeAt W step k f i0 + (treeAt W step k f (i0 + step * 2 ^ k) <<< (W * 2 ^ k))
+
+theorem treeAt_congr (W step : Nat) {f g : Nat → Nat} (h : ∀ i, f i = g i) :
+    ∀ k i0, treeAt W step k f i0 = treeAt W step k g i0
+  | 0, i0 => h i0
+  | k + 1, i0 => by
+    simp only [treeAt, treeAt_congr W step h k i0, treeAt_congr W step h k (i0 + step * 2 ^ k)]
+
+theorem treeAt_bound_congr (W step : Nat) (hstep : 1 ≤ step) {f g : Nat → Nat} :
+    ∀ k i0, (∀ i, i < i0 + step * 2 ^ k → f i = g i) →
+      treeAt W step k f i0 = treeAt W step k g i0
+  | 0, i0, h => h i0 (by omega)
+  | k + 1, i0, h => by
+    simp only [treeAt]
+    have hpow : 2 ^ (k + 1) = 2 ^ k + 2 ^ k := by rw [Nat.pow_succ]; omega
+    have hmul : step * 2 ^ (k + 1) = step * 2 ^ k + step * 2 ^ k := by rw [hpow, Nat.mul_add]
+    rw [treeAt_bound_congr W step hstep k i0 (fun i hi => h i (by omega)),
+        treeAt_bound_congr W step hstep k (i0 + step * 2 ^ k) (fun i hi => h i (by omega))]
+
+theorem pack_add (W a1 b1 a2 b2 : Nat) :
+    (a1 + (b1 <<< W)) + (a2 + (b2 <<< W)) = (a1 + a2) + ((b1 + b2) <<< W) := by
+  simp only [Nat.shiftLeft_eq, Nat.add_mul]; omega
+
+theorem pack_mul (W a b c : Nat) :
+    (a + (b <<< W)) * c = a * c + ((b * c) <<< W) := by
+  simp only [Nat.shiftLeft_eq, Nat.add_mul, Nat.mul_assoc, Nat.mul_comm (2 ^ W) c]
+
+theorem pack_and {W a1 b1 a2 b2 : Nat} (ha1 : a1 < 2 ^ W) (ha2 : a2 < 2 ^ W) :
+    (a1 + (b1 <<< W)) &&& (a2 + (b2 <<< W)) = (a1 &&& a2) + ((b1 &&& b2) <<< W) := by
+  have h12 : (a1 &&& a2) < 2 ^ W := Nat.lt_of_le_of_lt Nat.and_le_left ha1
+  apply Nat.eq_of_testBit_eq; intro j
+  rw [Nat.testBit_and, testBit_pack ha1, testBit_pack ha2, testBit_pack h12]
+  split <;> simp [Nat.testBit_and]
+
+theorem pack_xor {W a1 b1 a2 b2 : Nat} (ha1 : a1 < 2 ^ W) (ha2 : a2 < 2 ^ W) :
+    (a1 + (b1 <<< W)) ^^^ (a2 + (b2 <<< W)) = (a1 ^^^ a2) + ((b1 ^^^ b2) <<< W) := by
+  have h12 : (a1 ^^^ a2) < 2 ^ W := Nat.xor_lt_two_pow ha1 ha2
+  apply Nat.eq_of_testBit_eq; intro j
+  rw [Nat.testBit_xor, testBit_pack ha1, testBit_pack ha2, testBit_pack h12]
+  split <;> simp [Nat.testBit_xor]
+
+theorem pack_or {W a1 b1 a2 b2 : Nat} (ha1 : a1 < 2 ^ W) (ha2 : a2 < 2 ^ W) :
+    (a1 + (b1 <<< W)) ||| (a2 + (b2 <<< W)) = (a1 ||| a2) + ((b1 ||| b2) <<< W) := by
+  have h12 : (a1 ||| a2) < 2 ^ W := Nat.or_lt_two_pow ha1 ha2
+  apply Nat.eq_of_testBit_eq; intro j
+  rw [Nat.testBit_or, testBit_pack ha1, testBit_pack ha2, testBit_pack h12]
+  split <;> simp [Nat.testBit_or]
+
+theorem pack_shr_and {W s a b m1 m2 : Nat} (hs : s ≤ W) (ha : a < 2 ^ W)
+    (hm1 : m1 < 2 ^ (W - s)) (hm1W : m1 < 2 ^ W) :
+    ((a + (b <<< W)) >>> s) &&& (m1 + (m2 <<< W)) =
+      ((a >>> s) &&& m1) + (((b >>> s) &&& m2) <<< W) := by
+  have hlo : (a >>> s) &&& m1 < 2 ^ W := Nat.lt_of_le_of_lt Nat.and_le_right hm1W
+  apply Nat.eq_of_testBit_eq; intro j
+  rw [Nat.testBit_and, Nat.testBit_shiftRight, testBit_pack ha, testBit_pack hm1W, testBit_pack hlo]
+  by_cases hj : j < W
+  · rw [if_pos hj, if_pos hj, Nat.testBit_and, Nat.testBit_shiftRight]
+    by_cases hjs : s + j < W
+    · rw [if_pos hjs]
+    · rw [if_neg hjs]
+      have hm_hi : m1.testBit j = false := testBit_high hm1 (by omega)
+      simp [hm_hi]
+  · rw [if_neg hj, if_neg hj, if_neg (by omega), Nat.testBit_and, Nat.testBit_shiftRight]
+    have hsub : s + j - W = s + (j - W) := by omega
+    rw [hsub]
+
+theorem butterfly_leaf {B W s a b : Nat} (hW : W = s + B) (hBW : B + B ≤ W)
+    (ha : a < 2 ^ B) (hb : b < 2 ^ B) :
+    (((a + (b <<< W)) ||| ((a + (b <<< W)) >>> s)) &&& (2 ^ (B + B) - 1)) = a + (b <<< B) := by
+  have haW : a < 2 ^ W := Nat.lt_of_lt_of_le ha (Nat.pow_le_pow_right (by omega) (by omega))
+  apply Nat.eq_of_testBit_eq; intro j
+  rw [Nat.testBit_and, Nat.testBit_or, Nat.testBit_shiftRight, Nat.testBit_two_pow_sub_one,
+      testBit_pack haW, testBit_pack haW, testBit_pack ha]
+  by_cases hj2 : j < B + B
+  · simp only [hj2, decide_true, Bool.and_true]
+    have hjW : j < W := by omega
+    rw [if_pos hjW]
+    by_cases hjB : j < B
+    · have hsj : s + j < W := by omega
+      rw [if_pos hjB, if_pos hsj]
+      have hasj : a.testBit (s + j) = false := testBit_high ha (by omega)
+      simp [hasj]
+    · have hsj : ¬ (s + j < W) := by omega
+      have hsub : s + j - W = j - B := by omega
+      have haj : a.testBit j = false := testBit_high ha (by omega)
+      rw [if_neg hjB, if_neg hsj, hsub, haj, Bool.false_or]
+  · simp only [hj2, decide_false, Bool.and_false]
+    have hjB : ¬ (j < B) := by omega
+    rw [if_neg hjB]
+    exact (testBit_high hb (by omega)).symm
+
+theorem add_mul_two_pow_lt {P Q a b : Nat} (ha : a < 2 ^ P) (hb : b < 2 ^ Q) :
+    a + b * 2 ^ P < 2 ^ (Q + P) := by
+  have h1 : b * 2 ^ P ≤ (2 ^ Q - 1) * 2 ^ P := Nat.mul_le_mul_right (2 ^ P) (by omega)
+  rw [Nat.sub_mul, Nat.one_mul, ← Nat.pow_add] at h1
+  have h2 : 2 ^ P ≤ 2 ^ (Q + P) := Nat.pow_le_pow_right (by omega) (by omega)
+  omega
+
+theorem treeAt_lt (W step s : Nat) (hs : s ≤ W) {f : Nat → Nat} (hf : ∀ i, f i < 2 ^ (W - s)) :
+    ∀ k i0, treeAt W step k f i0 < 2 ^ (W * 2 ^ k - s)
+  | 0, i0 => by simpa [treeAt] using hf i0
+  | k + 1, i0 => by
+    simp only [treeAt, Nat.shiftLeft_eq]
+    have hlo := treeAt_lt W step s hs hf k i0
+    have hhi := treeAt_lt W step s hs hf k (i0 + step * 2 ^ k)
+    have hpos : 1 ≤ 2 ^ k := Nat.one_le_two_pow
+    have hW : W ≤ W * 2 ^ k := by simpa using Nat.mul_le_mul_left W hpos
+    have hloP : treeAt W step k f i0 < 2 ^ (W * 2 ^ k) :=
+      Nat.lt_of_lt_of_le hlo (Nat.pow_le_pow_right (by omega) (by omega))
+    have hcomb := add_mul_two_pow_lt hloP hhi
+    have heq : (W * 2 ^ k - s) + W * 2 ^ k = W * 2 ^ (k + 1) - s := by
+      rw [Nat.pow_succ, ← Nat.mul_assoc]; omega
+    rwa [heq] at hcomb
+
+theorem treeAt_lt0 (W step : Nat) {f : Nat → Nat} (hf : ∀ i, f i < 2 ^ W) (k i0 : Nat) :
+    treeAt W step k f i0 < 2 ^ (W * 2 ^ k) := by
+  simpa using treeAt_lt W step 0 (by omega) (by simpa using hf) k i0
+
+theorem treeAt_add (W step : Nat) (f g : Nat → Nat) :
+    ∀ k i0, treeAt W step k f i0 + treeAt W step k g i0 = treeAt W step k (fun i => f i + g i) i0
+  | 0, i0 => rfl
+  | k + 1, i0 => by
+    simp only [treeAt]
+    rw [pack_add, treeAt_add W step f g k i0, treeAt_add W step f g k (i0 + step * 2 ^ k)]
+
+theorem treeAt_mul (W step c : Nat) (f : Nat → Nat) :
+    ∀ k i0, treeAt W step k f i0 * c = treeAt W step k (fun i => f i * c) i0
+  | 0, i0 => rfl
+  | k + 1, i0 => by
+    simp only [treeAt]
+    rw [pack_mul, treeAt_mul W step c f k i0, treeAt_mul W step c f k (i0 + step * 2 ^ k)]
+
+theorem treeAt_and (W step : Nat) {f g : Nat → Nat} (hf : ∀ i, f i < 2 ^ W) (hg : ∀ i, g i < 2 ^ W) :
+    ∀ k i0, treeAt W step k f i0 &&& treeAt W step k g i0 = treeAt W step k (fun i => f i &&& g i) i0
+  | 0, i0 => rfl
+  | k + 1, i0 => by
+    simp only [treeAt]
+    rw [pack_and (treeAt_lt0 W step hf k i0) (treeAt_lt0 W step hg k i0),
+        treeAt_and W step hf hg k i0, treeAt_and W step hf hg k (i0 + step * 2 ^ k)]
+
+theorem treeAt_xor (W step : Nat) {f g : Nat → Nat} (hf : ∀ i, f i < 2 ^ W) (hg : ∀ i, g i < 2 ^ W) :
+    ∀ k i0, treeAt W step k f i0 ^^^ treeAt W step k g i0 = treeAt W step k (fun i => f i ^^^ g i) i0
+  | 0, i0 => rfl
+  | k + 1, i0 => by
+    simp only [treeAt]
+    rw [pack_xor (treeAt_lt0 W step hf k i0) (treeAt_lt0 W step hg k i0),
+        treeAt_xor W step hf hg k i0, treeAt_xor W step hf hg k (i0 + step * 2 ^ k)]
+
+theorem treeAt_or (W step : Nat) {f g : Nat → Nat} (hf : ∀ i, f i < 2 ^ W) (hg : ∀ i, g i < 2 ^ W) :
+    ∀ k i0, treeAt W step k f i0 ||| treeAt W step k g i0 = treeAt W step k (fun i => f i ||| g i) i0
+  | 0, i0 => rfl
+  | k + 1, i0 => by
+    simp only [treeAt]
+    rw [pack_or (treeAt_lt0 W step hf k i0) (treeAt_lt0 W step hg k i0),
+        treeAt_or W step hf hg k i0, treeAt_or W step hf hg k (i0 + step * 2 ^ k)]
+
+theorem treeAt_shr_and (W step s : Nat) (hs : s ≤ W) {f m : Nat → Nat}
+    (hf : ∀ i, f i < 2 ^ W) (hm : ∀ i, m i < 2 ^ (W - s)) :
+    ∀ k i0, (treeAt W step k f i0 >>> s) &&& treeAt W step k m i0 =
+      treeAt W step k (fun i => (f i >>> s) &&& m i) i0
+  | 0, i0 => rfl
+  | k + 1, i0 => by
+    simp only [treeAt]
+    have hpos : 1 ≤ 2 ^ k := Nat.one_le_two_pow
+    have hW : W ≤ W * 2 ^ k := by simpa using Nat.mul_le_mul_left W hpos
+    have hmW : ∀ i, m i < 2 ^ W := fun i =>
+      Nat.lt_of_lt_of_le (hm i) (Nat.pow_le_pow_right (by omega) (by omega))
+    rw [pack_shr_and (by omega) (treeAt_lt0 W step hf k i0)
+          (treeAt_lt W step s hs hm k i0) (treeAt_lt0 W step hmW k i0),
+        treeAt_shr_and W step s hs hf hm k i0,
+        treeAt_shr_and W step s hs hf hm k (i0 + step * 2 ^ k)]
+
+theorem treeAt_succ_pair (W step : Nat) (f : Nat → Nat) :
+    ∀ k i0, treeAt W step (k + 1) f i0 =
+      treeAt (W * 2) (step * 2) k (fun i => f i + (f (i + step) <<< W)) i0
+  | 0, i0 => by simp [treeAt]
+  | k + 1, i0 => by
+    have ih1 := treeAt_succ_pair W step f k i0
+    have ih2 := treeAt_succ_pair W step f k (i0 + (step * 2) * 2 ^ k)
+    have hstep : step * 2 ^ (k + 1) = (step * 2) * 2 ^ k := by
+      rw [Nat.pow_succ, Nat.mul_comm (2 ^ k) 2, ← Nat.mul_assoc]
+    have hW : W * 2 ^ (k + 1) = (W * 2) * 2 ^ k := by
+      rw [Nat.pow_succ, Nat.mul_comm (2 ^ k) 2, ← Nat.mul_assoc]
+    calc treeAt W step (k + 2) f i0
+      _ = treeAt W step (k + 1) f i0 + (treeAt W step (k + 1) f (i0 + step * 2 ^ (k + 1)) <<< (W * 2 ^ (k + 1))) := rfl
+      _ = treeAt (W * 2) (step * 2) k (fun i => f i + (f (i + step) <<< W)) i0 +
+          (treeAt (W * 2) (step * 2) k (fun i => f i + (f (i + step) <<< W)) (i0 + (step * 2) * 2 ^ k) <<< ((W * 2) * 2 ^ k)) := by
+        rw [hstep, hW, ih1, ih2]
+      _ = treeAt (W * 2) (step * 2) (k + 1) (fun i => f i + (f (i + step) <<< W)) i0 := rfl
+
+theorem treeAt_butterfly (W step B s : Nat) (hW : W = s + B) (hBW : B + B ≤ W)
+    {f : Nat → Nat} (hf : ∀ i, f i < 2 ^ B) (k i0 : Nat) :
+    ((treeAt W step (k + 1) f i0 ||| (treeAt W step (k + 1) f i0 >>> s)) &&&
+      treeAt (W * 2) (step * 2) k (fun _ => 2 ^ (B + B) - 1) i0) =
+    treeAt (W * 2) (step * 2) k (fun i => f i + (f (i + step) <<< B)) i0 := by
+  rw [treeAt_succ_pair W step f k i0]
+  have hpair : ∀ i, f i + (f (i + step) <<< W) < 2 ^ (W * 2) := by
+    intro i
+    rw [Nat.shiftLeft_eq]
+    have hfi : f i < 2 ^ W := Nat.lt_of_lt_of_le (hf i) (Nat.pow_le_pow_right (by omega) (by omega))
+    have hcomb := add_mul_two_pow_lt hfi (hf (i + step))
+    exact Nat.lt_of_lt_of_le hcomb (Nat.pow_le_pow_right (by omega) (by omega))
+  have hmask : ∀ (_ : Nat), 2 ^ (B + B) - 1 < 2 ^ (W * 2 - s) := by
+    intro _
+    have hle : B + B ≤ W * 2 - s := by omega
+    have hpow : 2 ^ (B + B) ≤ 2 ^ (W * 2 - s) := Nat.pow_le_pow_right (by omega) hle
+    have hpos : 1 ≤ 2 ^ (B + B) := Nat.one_le_two_pow
+    omega
+  have hmask0 : ∀ (_ : Nat), 2 ^ (B + B) - 1 < 2 ^ (W * 2) := by
+    intro i
+    exact Nat.lt_of_lt_of_le (hmask i) (Nat.pow_le_pow_right (by omega) (by omega))
+  rw [Nat.and_or_distrib_right,
+      treeAt_and (W * 2) (step * 2) hpair hmask0,
+      treeAt_shr_and (W * 2) (step * 2) s (by omega) hpair hmask,
+      treeAt_or (W * 2) (step * 2)
+        (fun i => Nat.lt_of_le_of_lt Nat.and_le_right (hmask0 i))
+        (fun i => Nat.lt_of_le_of_lt Nat.and_le_right (hmask0 i))]
+  apply treeAt_congr
+  intro i
+  rw [← Nat.and_or_distrib_right]
+  exact butterfly_leaf hW hBW (hf i) (hf (i + step))
+
+theorem treeAt_butterfly_step (W step B s r : Nat)
+    (hstep : step = 1 * 2 ^ r) (hB : B = 1 * 2 ^ r)
+    (hW : W = s + B) (hBW : B + B ≤ W)
+    {g : Nat → Nat} (hg : ∀ i, treeAt 1 1 r g i < 2 ^ B) (k i0 : Nat) :
+    ((treeAt W step (k + 1) (treeAt 1 1 r g) i0 ||| (treeAt W step (k + 1) (treeAt 1 1 r g) i0 >>> s)) &&&
+      treeAt (W * 2) (step * 2) k (fun _ => 2 ^ (B + B) - 1) i0) =
+    treeAt (W * 2) (step * 2) k (treeAt 1 1 (r + 1) g) i0 := by
+  rw [treeAt_butterfly W step B s hW hBW hg k i0]
+  apply treeAt_congr
+  intro i
+  simp only [treeAt, hstep, hB]
+
+theorem treeAt_one_eq_encodeRow (f : Nat → Bool) :
+    ∀ k i0, treeAt 1 1 k (fun i => if f i then 1 else 0) i0 =
+      encodeRow ((List.range (2 ^ k)).map (fun j => f (i0 + j)))
+  | 0, i0 => by
+    have h : List.range (2 ^ 0) = [0] := rfl
+    rw [h]
+    simp [treeAt, encodeRow]
+  | k + 1, i0 => by
+    simp only [treeAt, Nat.one_mul]
+    rw [treeAt_one_eq_encodeRow f k i0, treeAt_one_eq_encodeRow f k (i0 + 2 ^ k)]
+    have hpow : 2 ^ (k + 1) = 2 ^ k + 2 ^ k := by rw [Nat.pow_succ]; omega
+    rw [hpow, List.range_add, List.map_append, encodeRow_append, List.length_map, List.length_range,
+        List.map_map]
+    congr 3
+    apply List.map_congr_left
+    intro j _; dsimp; congr 1; omega
+
+/-! ### Part 3: 64-bit SWAR initialization proof -/
+
+def w32 : Nat := 0xffffffff
+def m1 : Nat := 0x7feb352d
+def m2 : Nat := 0x846ca68b
+
+theorem and_w32_eq_mod (x : Nat) : (x &&& w32) = x % 2 ^ 32 := by
+  change x &&& (2 ^ 32 - 1) = x % 2 ^ 32
+  exact Nat.and_two_pow_sub_one_eq_mod x 32
+
+theorem and_w32_lt (x : Nat) : (x &&& w32) < 2 ^ 32 := by
+  rw [and_w32_eq_mod]
+  exact Nat.mod_lt x (by decide)
+
+theorem mul_and_w32 (a c : Nat) : (((a &&& w32) * c) &&& w32) = ((a * c) &&& w32) := by
+  rw [and_w32_eq_mod, and_w32_eq_mod, and_w32_eq_mod, Nat.mod_mul_mod]
+
+theorem shr31_and1_w32 (z : Nat) : ((z >>> 31) &&& 1) = (((z &&& w32) >>> 31) &&& 1) := by
+  apply Nat.eq_of_testBit_eq; intro j
+  rw [Nat.testBit_and, Nat.testBit_and, Nat.testBit_shiftRight, Nat.testBit_shiftRight, Nat.testBit_and]
+  by_cases hj0 : j = 0
+  · subst hj0
+    have hw : w32.testBit 31 = true := by decide
+    simp [hw]
+  · have h1j : (1 : Nat).testBit j = false := testBit_high (W := 1) (by decide) (by omega)
+    simp [h1j]
+
+theorem mix_final_bit31 {x : Nat} (hx : x < 2 ^ 32) :
+    ((x >>> 31) &&& 1) = (if (((x ^^^ (x >>> 16)) &&& w32).testBit 31) then 1 else 0) := by
+  have hhi : (x >>> 16).testBit 31 = false := by
+    rw [Nat.testBit_shiftRight]
+    exact testBit_high hx (by omega)
+  have h31 : (((x ^^^ (x >>> 16)) &&& w32).testBit 31) = x.testBit 31 := by
+    have hw : w32.testBit 31 = true := by decide
+    rw [Nat.testBit_and, Nat.testBit_xor, hhi, hw, Bool.xor_false, Bool.and_true]
+  rw [h31]
+  show ((x >>> 31) &&& 1) = if ((1 &&& (x >>> 31)) != 0) then 1 else 0
+  rw [Nat.and_comm]
+  have hle : 1 &&& (x >>> 31) ≤ 1 := Nat.and_le_left
+  generalize 1 &&& (x >>> 31) = b at hle
+  match b with
+  | 0 => rfl
+  | 1 => rfl
+  | n + 2 => omega
+
+theorem leaf_mix_eq_x0 (x0 : Nat) :
+    ((((((((x0 ^^^ (x0 >>> 16)) &&& w32) * m1) &&& w32) ^^^
+       (((((x0 ^^^ (x0 >>> 16)) &&& w32) * m1) &&& w32) >>> 15)) &&& w32) * m2) >>> 31) &&& 1 =
+      (if (caMix32 x0).testBit 31 then 1 else 0) := by
+  rw [mul_and_w32 (x0 ^^^ (x0 >>> 16)) m1]
+  rw [shr31_and1_w32]
+  rw [mul_and_w32 _ m2]
+  exact mix_final_bit31 (and_w32_lt _)
+
+def repF (i : Nat) : Nat := if 2 ≤ i ∧ i < 256 then 1 else 0
+def offF (i : Nat) : Nat := if 2 ≤ i ∧ i < 256 then (i + 1) * 0x9e3779b9 else 0
+def mask32F (i : Nat) : Nat := if 2 ≤ i ∧ i < 256 then w32 else 0
+def bit0F (i : Nat) : Nat := if i = 0 then 1 else 0
+
+def cellBool (seed i : Nat) : Bool :=
+  if i = 0 then true
+  else if i = 1 then false
+  else (caMix32 (seed + (i + 1) * 0x9e3779b9)).testBit 31
+
+def cellNat (seed i : Nat) : Nat := if cellBool seed i then 1 else 0
+
+def rep64Lit : Nat := (nat_lit 64495473597036925597877671431355483327460757267394701351341934674163243919972535654500222330011198456062459660073080066644043931925433095059446135688125697102137755107791711673569069497977208737611317215162294102845112920164068826746740536668381694780670435305432902817698452103678197510320870450251039498006451966678266913848521862291790362209950509875535365465251029318250325526652290503859026866942453145067537453809142862672133148066856435908308193373682157478494079952177347209792722788388935167072571106515279132666675621596779351106004593594748763577241018394247406903536887862825189134947666031832639370798643497992125751728253962001831733076352637495781064622403625791398585222275792907711603337083171129358655010972222311831287023585362297807007937907544114005241142216663929666584027667267801492665247487567769272955120403328613556764662716253512497155792079501892493734865611738876446901098134209708758427636134139600471217264981797049644820697669538038874942555401615906305433759619156051540966759458236911080395019913945567074925798708846063716903046518295039546720361038471995538682337889811471184209572757462722303416867815619421995067360153606239037396245076158020306017074922401610476600739280720773577661513634867440283826546491080515463579780578575430742353911282282178818568359247958244672441690143632447030759425557396385462225123742653618559557835296858290279389958376512070414811331272585905304167157578555517722760998823715178066378916205299045536866291977607577640226964517962634629997584258678467751913905375824746562702874483094546585439239769773945554011772855752201498645086416398190263335951429683854593142689956151637653306811791477138395368436794297576646530455085320074454159758964715712854047685794596886727605320169177523821430298265456199899101217443978097694922433719368370867250358765784472373764827756462929266322565686353689488594822976677988155919478221313139279956734979963948878050896903056008873045970500565611839243696009191196989780989762086306986454052283660628068156436498317738049051270158125328788332397230682590108886872739474386857081778492936370914581831086853402072817495316401732598003087607932943613657968356259451305566235310530242134452393315821351806998356681176082776026346149764938358509915524182963803089617785160677597738675341009532183273262429463570288237374872338887720693144184836604494199744916434180962409263636993928676794249959185547005385859257482026717108596180715928337961997070792347172831393262998571033967024742912043949681829107572891541273287315408689559111653808805568892218013741739262217610515010427586460602411477882634173682396650644050633732374305176583848080114514907166530991376358569309428567700745330535726848188947589745078204435912409926861313120510726967361800277794242547926663971259314163665188135105692799589299098908985771879789380555276801060727599526991699705033417221861624940290215443202824501370846474734683335887860914125184132128728786815865963739178851599980185805104981589737905861285312087816758322006562593493515250608584812711057152762880039226201859698138336666171053977205145940830892999592982828216831323662489067566692315722124128967301000231529616430158137525520017966716908553332879607317908245688390878990297630497063029025591236675303998662458280296122773564971377074599348195811179885607259829661871717021407932505381477962887902449919074074691113956992898617615835245894049076778857166181996437613801169189194256156418837714505422869945233308063380305157836000863642385325032747861963368280277873111189797526195451548911275395939150855830322548268018519053434146587249165267007152440016050523430629840499499751279320073149814211159241868139306103908969042088357554988654966464412665310847403384002074221761197146009572233092270512738902226139404838059853946972209628092225446991908272637856280012116840504914505810038859309291494541818806341893016284066508827396593382961248202989079533081419207220023557066255068686072405551783209106042192991079919524461948646076619023194611714076968381279741164411229757701867294668621241681134655153600160516703619515182105648862566439655850923186156933634695955521859724127570446324889236180968056982085500399697287374958281295022050344863737223400044076017162581119157498242112990782551147421536902370599945567628110946892200144426277595174158994416181806004794256674436741500101453324769319602779887779987333253711580856048493030352807360535040336676671205141553621987120305628117139776987765253683094798870617240446076192949429729484574547725236209712265526687732064262641095452497380844619384699306288618924734745077543770104360081179373074023286805349268375248622171009713159257991662856535235905952459520310725923457139594274987454394349471917227540613562807171316953078939564243929808040098788359388767075035848164607617301991947412914631182252254617539787977712174151750692509558304612960500545221930200507348199096519833863692707959080501708324864)
+def off64Lit : Nat := (nat_lit 43826967565969896376515058871281116785527046606263239372005240864641533568987433351594532884235979029676094315515211500000934062182898411000310040400187156018197468837325510714655449415810351201570375136810250717971062426291361275009042967763033764237470723927628339297712528375749635110005750357014513149149375416617234524554683907852953748575289068151202670848874120568715053986031845395403706954051401164180938620777553156891477978849115371418631183217803912318475868092060245122761874613611816109192745349695246397569794312143798254269502797025317559348440100577323257139262096108122911656996693241105990533824323240863902321929230349369642914218068977981702642824938823193713671568570656835880290157359411495196968962629764523162724230336757301310983443790921449674676796491163130021012202808449110888771268312107010519908101536922792204198297980303366775207548348132673146514491990803107686446957436229440633978887790973813467212044334350697162211266163915959184096929918313041287950083047711616429117050917997530808374447552202803383589734014691545567779615729525725938631115905590453036741479007825880661830617639422813221773981779427034759327721415165645984771879827653353434930877537570855571100946454259244638860115264791598277778082193554939456512456014036563715422635787965824369938112577402487000024924939908929182129344372822727670494457409594484009163498609679923112774590412846463986492833536351759142086722503967287620478219043987251251624106614148374568878695229310122390159279457003994705434681942601255769576659632875742592531085039866241344245778391695994263093711554381906569961233104701923668376350299948071722886113313549880261746225695044046195049880348483047207911838552645367426256722780171167201078727247007916467368992151368857298267845668875908870909085068135992356062796275144840681346946344999614917184754848724099821122542926820788612297380104662741229485986820614620561392110288520434732942014267478871104272563261433236652999431307062701117758546052839473168718624628332442638200986586696368907324969268376518234460492353612394283027904067970209101203938439933048975335842363467640826282145308567180014804593721929865709182989161224821906236976235394764470715513205970687512121640298638606419444056500036392467889105993250290627058138904433130417144784146591641645670098096818813589399834076597442766126279377609815549969312435623464826164733689703878582509514675802910100100729176630555904645391716605533957789268525676564910746698111970846730845306499534980323955801437512936573153557425267018011007552362443850842270047045521439146444221785407283762526755818623226241743367013667818058757000372146004484485523760872384059707863480423179998819477540432474523182190772371579190851072884883926740960983409461161041875031240935473153699055238583876808214262255032020795187674276805049682637469818546224029003343205563386796131149824737308385437754600726332048802534977430604160494219573984439829848986427681335316694315766653393670894039107449270202414813667745501420157759460712329495740841574198271838647750231532608596221958099678134208220322965876920999159201460561059135890359873242125776775442964310366164419000535354879228790925781980881723908823225554932415161743278905852653712547061265004757777814053336187160761784999525397847713459897603682413106045428301581087375169413249627172310041949264717949106604739232770682730545991820592104342063773374817877250171041407715789054282879851848970152632267234603816264267909171802565226215093372161642147229618663614677899902248784213583954947829607638979158175767584988324527736115740244215990365124582335991057622105140208515999795000098690551287883502536887563742854949395133289039570057893369276661404701266150911028061464470355820636801122208970385306231224747693244814640959403652409497909371166066062444842108576357607842319034224115761491689027191054422093658159799337816970000548761196235332656703177669016425204236143988120349555299755139298064436843939365934041801377732303437850521053172992448162329441903655832014513867089000440751418416271948551869155681076052038565372625613160494552016734062327177198428335823063709216108492005090912563778932278544406518037046323136953267234512583003668523953960885684808460323606825119450181330170029820026835318123413361236031082074221251071804511199578080677762833564705876753337428134835984369619998621712356090599466695246606928073692731874523838360804011061476311737973396919137816522868021049731965580001062157188001439983131173233570480936042604954184555333253324341859051004412466548174235248228988505232696284007520858574275116656410906716148918812046129968948404295659785520929271345632528976712809829653982893547608416141732775465930077604847496111294301349386923205799033327157912222175677100936297461009397620141794043526133858179127283511084129882609363420608194201550662631752212410869948219754298900044553563190898441298362104713783926023615241990589597000344665348636672)
+def mask32Lit : Nat := (nat_lit 277005949774809604350232920208427638410361727859393812160305913787557614127389637934299874477626794352542758717270696196152589094162941521990947233594632188902757932772684601310048869417394180183428843860992531288891126442686621645006271852841447639659651717810247653418928198957421807511378563539760139183690928895871586182259983982635733352687941363483998915289125629886971294760075238550913591684044152905134963930297841767159488178832540865686447309320500580095171739245716870305919248105131682282452053794045085292599337931131962990331611807609212423305937380335786028789248153196916633636789567143303615011109551854240578271200140494252040023656104315931370373033505097063475415838944836008814289624785080695483637597313560982784669324057024709807149315118292703422262164409015381924158653200290349417549420342184488123448170135083604363997852378014701104157907501280668151197240203638642419486020586016219788921752820289816988244741936167098551996262629748594726316870453665907733622278353166896869786584555259451452119726211269924997035120006247070853584723481940814013895575170829457612026548630879582452015035419225359474842514019423507635617963181724972973569154557903481466289228503279579852329537983517546543156343641952227679400534631987823127816921208257652728947620272733470987092841691791456393745046961425212497931591782004620911470364402025288226705912261002972999596283778530638604351751411167193359364969013007341961051367049390160190198784179304906275556440831745418308948088981774955767874050320030838915182397244891970138472512707381107977315458020842425697591220460424458060930632970878978878215348988200647667083384629996267781643305245114669148296215506782734194604079812916154387581141458537045680745918858229716203884423794621331862126551172229606821622028816569424296006740386492360932271077476060873864150951235316506078753764543378324156100040191146506876071519614004705161194025753927640710280545544042343662962250331464081851216471894398210473011800240890519474150162578542460431890925704019007439052311107357765657009623694730295043559607270869547041344077767596101594118203119249666362236350887761118589758643585091775373740089406279251892052032115001559075904022025929312073747094064396017659245966771589582187491072109578611130438728341315446602326776546258913010408608182498278781913248273350322917054149004592651221437921613427315253659411725921675780393929018757009224817454366358288800297637559536821897110484371938930843596546613862196222622705379263011825486081672804605998350911676818671215192522362182101405945749030630707642066335017893067814072163295638529624415243331733738158204571423431776827329340381381070211726565387091376986433413394541774911642024959878424188275269567724120502681853347966021493464625448186482642491815013574297072260370300991942553029061787064071844026060973222800228046348872286819969579673849985438134102803137060061285012468275451508729819862413676469383345848869299171501363429077777573320680949139969501413296009222081041144945937265114425027795947600616827690755992388658484854094471682728366904009707775777321570690558896309558687893703661950163493988727354337441844919920415207130391423852350220705034861520760070481161602858583042463586439630945300880303218550079559035208437982058173790227766242622146516975729326273604045022182965009933092441884964180859349366764773552798547480721672402536109910723255223223819890135476228054717357783862300350997593671312305713338326559815499276878197800025436682935799546803596871113841251833858524720078912681370180331020682296828735862495414112198433788834017028471028837845662260948386273202186366196417895605314124015459672255167860653022220282893692936974198942437177003974178893870606269961234994626919042158452498071418569506465935471437890231843954722304626540221538597002160619536101562404033687339089225204383412513258678782783054369093328968085018497168574231971284215617836738566067194829046729131668134659603846885312040597405786766481088796021906868608768795703732184470310345578547211449740060294391031856095762764162375815890925992347025830899731099476808086470770480101226698504606235162172705637474773952213894788506177753625110409277175662220151529952535033222605977298008052207144604565952903895287105693634840224574317334735741742947239533481510905138809864262710147588475564625945620541267289304981211853241113342009098815751838957177139476380499400749924933271947532091815551208651923474623903167547771106045379706270455533903984179048459795910277036944889469306166863941797479758893730881795291449476800799734006543918806112453796658212731529225285568952381533630897380138723870619718298615146344200659351485115231175509464545956078957087891660640353159035014685013234008536490229197775553094981709229927807852344572701460777651778819575492819931552491828201554760618022346122725507976905113591322154393208312982968557858727951852922296701234763393668614236953109446920115322880)
+def m1R : Nat := (nat_lit 2146121005)
+def m2R : Nat := (nat_lit 2221713035)
+def w32R : Nat := (nat_lit 4294967295)
+def MRaw : Nat := (nat_lit 115792089237316195423570985008687907853269984665640564039457584007913129639935)
+def rep3Lit : Nat := (nat_lit 13407807929942597099574024998205846127479365820592393377723561443721764030073662768891111614362326998675040546094339320838419523375986027530441562135724033)
+
+def bfMask0 : Nat := (nat_lit 10488919888408338884760404291109109293709886478534142027520038210981430692905452858037066804298376258567852228015133613944129501748912156090224164445131245548662439139109839220806092989383592826124880532592857287086744073233588358886544550763379644292705675405698169310960174302977820959314116385200813752406089644148294038832420731217587926947225535849256661596999733876590765289968047986416750580227544094963628881528484149146354456750255166468076822089654974986194477431398535427139133323487967044641409235372645715020466229901353337423602839493190505543993637401452448212468806489670301298272765493927784599406236216732055331080570663376807717461700446515665957679511526297893187256559562721915103268376207309854492942088002449716657462528003675581169965849076794854044170860662618603465927766290199868759209898242730537172603310656867125448618715042349047273661671542519339892545131064122035250793370825966835566476339255397172015662696293006044296563633692947167880266382247363520539417957884875887747360020996551040013217350390259905701871208987372658197468361043245697079092789348160874789406839772089648538247606596959135610345886805160468563637337909572816984645463531355009178959800178111933911245825058755837563551889586131044490714918688472698186704680557073989447926002938324585006771280493621097754016691875674372311377659906788383217942499037333986168136969160856510454190994154985836350876881868629036386787249017479033700022784585638650628292155000405845662535165881391401543210917984150768012069672205542684026351611196922026694683038432562865051866716109025070700436332770472571266122771800355840495776026656018095776421905900395907016744331977782440353526448811684513696931950749502147597014763624010086966460416971563498157894857697929566038672497130694666326503443061512415052571407436524986562951171717964769809703463273135199652191968993456193682117889563250110540751530717558453918619406902521851210887418932507897380498021790126078153705560665082948279659156133615939981859702397074650517179449818078450350722906898583538953636638712943614091815902552338110443898797696130413705439174001415815644282939845252274793488448829859947449592189351233525554098904236974541175329641089300279449490218383988238345360843553558357243320291933397488605066695942042662973389120387610761182730396198244240671566765086718932439145353928882696361619258916241805298527376087439512825572664833141239454231754430105808324733950049087233223949771912083698083795690939492120089832686961441365075989677903649139003697963292350438546753048402592153264070640737497995736086193159056591102945882521124054879212197879068506687895972207299763671029651098309713508561104680379440884859330781815380779300079637517945141943104432194155029056888603264251949780837688449529768377779774082135196912776259267436419568214725692872801408387408963677284460472899609247892759510778865320652154391273996283476839922395071646456294669210573168991096895936924013620309274994380743437061855005103823485780789314050995637765439876455542541248246221027202145742299713976266382374931412578374110881097816172639022268410379277928029686214769079873621171654254907974468750890395591622095793293300835119142456746641107963509499883919456922769361062961300228952102745646981214952285938219421040665345920258102292315786279776005485108868324537046190475555053990164857001000903995172487873526242081738855321989072579777853270062376318888464724003315975055673321751866148189056188977508223358548621470493539588537574779153452563883146722929181444663604669494196327897297122157432671615045283625346894450724092864366601228375367858650924415891305711218927332397619832242923633844159378267136894215638887062126611147563193974362038228512745694109225747441010183792226610395620716284116288517688117417189950072433646215215012536462275199307361124213390575065787707640163254144845660173027570395438639377214575062629070446309142223237135963665449573411205083907610270883351556720880626440304014814846979861521473372086316705075693724212664672234669942081882567950261698262995294301863240152856007083783388667739805845810994386619434004406332044546887423601825925739092087958402077466072287807306873639931205340220432060911703879007442992818126032509083249925029290116092564270056104334375836186380087427641495429855790207462116420856235639755829980503478342065529819345854297779211106444871270613493679347253939824254617169272473902817006000443215299447862363613901827894874646783619256734010618759657031904249895695731721829729934936803200196318274127666455811914562540921934117700886416742109939439584008647843151867032705601389867811230239842459112021475614524738661340828998769018001416511050682964829132150346278624623399898804552698061787326589428743974508577132106028635510155653434680344492078024948991324666124601971807450309509121310443412711137158517842161250303951401979945015356938736356286569094746483957170179)
+def bfMask1 : Nat := (nat_lit 154120825938144258103052093242169301355383368808578214588349422207827094298596761522883738638495055102739390658778121662352913947974112576315426404732853728030362889437696178792495141487710481586959143434438712958391586450722697624806394485860743051091369586306763295786476428528965514263690269778017236432630777501965513796687051393809429648056929545897277754229577960319652777573799222178174919231323242764672556083642323930271785234910916017294521184983324220214603586905443303270496969844028739134608582401301003512889089461374996917787050090504931354901329981216495377818785990178217345109764400138941995471604399189633788368484339587952357837081576739632517374993156002777251663493903326014359305251592396476066164041694310072444251731247927304917056071693193200314618315964479273374227102790258541496586876974411191654932018300998146324365717984120917540152261491641342283835688281314580293262695358781143543679618685100231003780271794715249252322764227105436061155803004388484193975140133208886146393515936543011643661777817176073613848462040883283870100149418379425238166308155432633327920383864815582097985956834799243726583779570486283600945398137319543867055651730126465222730435922443146327304471591693638681255766645533222449377895205793090202923035614404713495509265170047121752660518979884904588881169340744917998192490574710160057057737606087703610347569571557551798950968662479584365561694080331635124357756729484296139660946234414476392858414485114232172988110468626503091051382405292873418364745825337570044412870097246968843407345462356092131237752980862822302073110797978305332151991983484231335435613046496542471541077020896350110653444013280263187197922683711797386992935409432282300784112428849905605523733585073557320034525909809357305411213345228542164973201571450111049843361870183115391491754766240155066375808796522602151904159152028901473523297332049190630547690635603295014890334397867878621191650041971344200754361730049960854037873367184791713109327797451079291112613700877565425570241743055386052461172336357386950608157391543130226847551786228224553667677706314720598515807317560443368742948751518456791480462160949259799115231562075154856408767804483323580851531934043273683327864914208096261851244324428398820256282674394488329292542023912290538027787024023035652680481455323727324013175072283298650211815415033790307776522775679886163801363898226615869143307271546471262097869489462698809536608250943415434224671743029154655538861124704746902606047865556698686430641983431763729621554102597596819987200205250011919991114081030242310040254267120010347509705446463598962239444977885585684539025289235888908660054430661656239557933091469410594695090411060084427092798704410710294250320706892300220240563548831661193664451317162320678538730734993239004018060991775946400926808749384702798049127067858971258928586309488017182180804162549499093817453707257383395948399910911137482920004653803233442496345019435387245016029332385861513028375660632322593065316308292879928079369247114452957211520524225236982220216889104828105123426275848845457512827024709731727786631634222477677397797497154269895778685934205443867611770797599608796362156048832084869324224755614046840991537778327456235768849172921573827871278417979900068295246386053119714560277911784018477960413705625483003571162153718398362487912146858882953624913312317600182335846006419356935717244276961463843114664498622916951603581226564036433610676388025685088655215358189886265286878225104545103242694145380649540077709484424931489647632971505171829029542724731212850198699508980875881928090509569946110884694214256878516611704731844732259518391382912500018334697381040615023910292597317557465566496233697760745620062526041469276821545803813515802428230001276979873071185559095942512871467114338152716791761386325991330050501478092329691838081955834578573496246931983369279169296554252614419300600589671557029647046430659167685392020109033012495936481408195080831200781719623391594303554985564595454011762941471449622080415173402879917714609163057601908798764189240323076723149953465499075601159352727489957209627353939869785893410970344388594919213200366857132742642468085194370316825581233055066254417431555045756723398160010639091040034592055894344624668511481595130069654886252204403006528359874883105761703468268590214963645647255483072531230582955017146689001079697861485574079847997124408787871171655999336335592078104896913581794854229707573317659467672134555277187066047084694385045605261521088100333817004278465845266914587057508780960329012914179636030408169698791063730232795721411286449154361640193713129152082205547941846205034440815111737898662224230180273534963943899853648656577268390187650259800198659580038946105923885423306916752559331801846830802585768235614714468258058729303552107747850312673608353244548251599805167267740727452963144990735)
+def bfMask2 : Nat := (nat_lit 22627228321087156909406875421593889229810013477653919221703861365329314453787682709931557696130469613920936982747984865901797063149724859089191337414468444486890977126762404696181248219555786913712723873789931201060986805424217680501587955579515749661784795372096354316354338153998038218851370258573715217483615135134927316609751321321310998818760342020605928286793473311103171115673689944747030821424014139892865084103156365473576668656123564892223431805996216666216869938701746826202370245674570803389936901240265240425590806359516139080440457806768601657384579645804456521923217556819214432188219523421197765096876751235813188416607897001628007877283075103648643846251696367838038079918821023795600645284745793441604829827401513165210126747311444984220365387516725616110617901858656084743518131875772788966700061867554390725975015289122912146587975276241444114836615137625999252874970328835923350626697948296815127388181565543298925077856907036254349075900614356918663447840087592859615668036686084568858864273823955865821855897804663543320883220088405000924390946204303237939196931649004024580739905407066048617002357397809138010339878138567063228815866220515838419342655737436843825625670864901933939978236062378137519108113722159527464813869723480995609728689744897206226519031839782549620993254395781172776141267691021673852390572577443801853971500560432824130064815689095901647492086357579741193539535985862620339535005297111284756084645079771419063171025287551034976160323991404483062393230919511258437657657890551196661175474896142928344775845678575907423576412082612830768342532569361261875326258966049348934358979167854562092437190875324743998898027708839842797300727640458926635416317427404445953084830084802300007070807561171986717420822005450843489155423398601211503867768234623580395591303310985078158177213169264215739265868839666501844059464045066405589403262217760464951032808164464322983266903643576306974106700396864787023714018262060990304919743783960166284807407432328094511616432384602720922566653732835727144401138882445106630581612616324950470050999501641539872882329759510989440467984689133635323563766720489916911724639905173482704723761545997585513254780336974969675803970242983108094920516787843269922921725062462517443903802652702377941466258261923649418975393350173058966246993129219705498206471180329033522808542689178084962537673891283331548792208587390370388169382420133284356345511521768566036740843855789265274777974104785857241138397307882085508450461932025480720197424823186032347579746114119267987099939792833575525475447881789540906324956244955531690308620712766334370010048897056628314096151228548246273690057308574006604406265362470422022428018187164970154205208881757985451185831431044096187532732634032094037499987593429705538399534977853666843276080382718907572864452411384304603726973732717314004023486804730401249357861082527276084997581797752372860249811069984327449867912907268837366704006890659196175108701279980851167829475755393735780007343042382811098234995814297815214550549330670026959090453605016146666386191170350806420682470672348663118170253594759154352284085724709391525938612499825669071171052858470078596052623155110808899314241758481489861878331030113713960211277360202712063346532596738609985710026349550116034877676658124619317258414482032491671632070063589971848072956194578795239440962237330894860065223420273185068585535023748926414694989733124026287592510555956494612050379619611660423850678747552316528273585199887783973482084625641761893827273476524485586415765982768278834238191903810297157624686817686811489344476329457268182778271159610479514516607724465730373004403702184873515032182277560918882017668199686438775031411975215941984213516588705508277773552734552343666506175806965135181339383929197396355384680401216680418755732809368751186844508571117214660591450593292559945410902824587855571092902561951565788889191882519207846216480497633633873183442535694405951197872111374401989773199372200107348647146277101259464790786382520490039925788113019202888233503015062055313003782009318054617894686280132911846622192469056477881065997001157356988799709106348793852780304322033862184349498078978645138979805733232809951891133994372471791165328970151762640642676230584467048175847164214253836788206734450984694185588701846390002213078646518220669763875870261274366114002368745100884892887099575100639528920158475180761510187898005519551436941437913487437114294681404499295662865811055592763042107625442317661354021100353084990855991306478917397095189254026287931151064881217783845061437499217106014481584778090596153869534997637939246312235870960701925562729425087892426388059684021745829844760166788113139213006673303504078308652573483996972462208779305839281508219553908924894726815966649520448630297723135)
+def bfMask3 : Nat := (nat_lit 433717257056821215534628164624653685111910188684366865820446601723839376035093726662567096704388855329165412587762115796745889206642313229786914714639200469027344543504275428797464189488455935036317600216090467110955693337008920053853949268126968637750935984695963782761390950259509105103455167289335953667261576582742549727473765521009425684264174610921896070276504703389480590728851145781183109189334852633024683837875096070803793240904676697818226000523114917890083688286803055886813289340761302325265787740409129881405907492188990927691439613897424219478489369236764765005682099530970861960889681788060197206940320599355495931311717288275832273134156845638225076292966776401288925313502428465901084294020157414380168479796547891266349264188788489041316059240942610844542765987114670686013841292114882054367014029847038964335130788845729774608944563855698679562790938268132999820482105762731174690648017738757053686406009889608530055043856761929910845536397253347458675235209535655831947556944330182081250632143489622881827190212334058950868894904379223630575193095959677199934543176077757771157196162299041820063561717298105122852112655765638013999788225433017691151051438138435902868366639939204075383569357937612925214674609390329062063169585829252259085173774086422771898163356605355772250174784045365199685332511628218269930126259444155486231886128906606132303137615646245487348116047913298827943466153995162704637691668013315046364656122941182151749372976497527996670365590154326896805735207237978453424697188595410913645323515529855389143893642793344209282517206242529861996906748148861240695427731676288536329656800152862633582324227281270199691519362583048575869519780090261029804200777884772619624354374290791634892246089014030947134843006750292210398396384517730443969480595376520708394993681388238169228736594975534301545218508725699151680106935915317369966655980441597160806248895015376955487492648898508524005852621162611036194991951461017503672575911834878334461873801025195977331015757733968354997527745946503460585875141368121678980208906382282739892820211200541602708296616537330266427414287890119400667350198147830246614648861042431157909817991730945839475192534413252687186144538168728329727975081721598994390731479622151981647406034784949697683854635411273809989571343088617458438627351340368832008059668294001779699524503652605865768075930555242775419132436020920781399235323157573156318631559245324256301279821385682407643802448309198210217015414251000942230213923980609665055014717643174457585116421913937252588266514939864259065148437071063933046945086192182870307212270492062540144090420526090892192403308235484938677002241085223190643262116994575542976355900438324226768108536415228976620171742711636938249753260811084518941458086604133313799453617403737886381138077628009193592672732183378911055715548460971133913145875225414936662522775509619343400493023218230953861600939619744328678835902664171154456397488037099662990430953696090252250701680126109193177690494540655584038901604651921772385495852844029323760509263286525225892335756566739193650562307464137335799640594185346612828455275923696856796225809794251570559532648767176801216247647744386015602466910427261591013933435106537202189873164536399514176547101309964099101112282431035094932284101848740924219483165642066293755304569774942567472022057499575667840745763365221314849065757748490877769675041795109377457844797484839800065112278127659887480133514058878555270544012299005526278187623508361594930386481786415154429644320977216727815387479436535672738216160999798436261548489876014882526598052677205575851616166221251878405833416004992440131639798088858712298868578034144651067959126302765723338367394806646162653527617497406315221202295462955685528254854406418930873110964741370888101324421990051682090151287455088910767124345079037284210612355041487543946187029185417860956794423001089981751436561419563165868611760548808226371004899788897515865160288934277715725794280354547356037160035605814672119334725792055012638071474079758895146307814563395641380415188238910602535701179083835350562850159851565010335192083666073110565678407673444328331541818281277093801853106893991990257273228160659196140329100491317512863909504861637250062670732929683272358569373644191517876698211242915244198468128061568133151183742498873969790925001301576660758356926622489403269179052233613566601568783753663528676707004337576976968574819211216485914342012712660474174981287269395769184238864654334831171744280701248882228181691464426303682880754081069859724235781993178087994243530485010417753682993018989984291077193345935552594172366160239421095935)
+def bfMask4 : Nat := (nat_lit 158116684791756226094357194698851608162884346932040987042178366508115753579226567940703285448663411330246847958616195278675280892639329004697864077713399382788041242721926476098347815101258613715478979965321985052989541456155396298821160849975148687555331335159549493584112472089313546713571846321323718436305104885221322792792316691769440532728189533850421193243994721548450887295895909208866542413031314871611494554113184875438441001188789757884849097006804734174022850830240661481188214594511644567775922934150444991448999596561756590385202091824014572222422087847903029061747141004408206790403289592839653907614744373879022310380085230508262823378895024218667816947339137428417697671025939904501468734339181066905602789334001394180098463480324924593457750106754968478945878926780433537386266298716676298739078834881897439398904583745403277051912306094248889336089875894503981611499386763575130629314263571138687546813171566009020909354438186932684164161039260139309942992637899257079252282001827162264678666814884041001112192322106874843333619670594417750579011030036384049679157689711884565883171741960959116628695667276011172553179638954489138548812840861514587106791907483512355811393833527258083976280274870379741520548313117157315855167930767406991272550064578415294346354507400866335013704219198094955803576937982886735007613785089708451455305403047339454117449353518232104140377090463771518253906521798712144238887395586950945983688097284485846517111004519862012601948336971526003082584591280698928033685062247329176163305699103332390911636147664788430949996619963902878650291992623171608565161228704085762152691846594992539291422117035744334825104350089387036688218405329971503833714151294067466889116623632018934476555410095899173464923780179598098933773455214784004138807159906312272055400772132013259058790598249872041776586224813896409029135893571682359473646986457205270520482339960598203863905253249699599246901514296207459155641706621670911346200805491707740491494850636537130411500560395967756777698845017016938178382897511815539135052078581531153948602493921297438286997374198857319656005884925608409300087933961424639595249720718898646884751107337067686037370985853324722039130697716391498714248883811627914243782470323380283948162113592491672148452488533330989208492673601118132456483372070432285894465377642894550667499591407451873276977773198258050013580284555376017198548978817688180544583510642960201804746794555711784857704844861771273757869343799896606664136814303753771165267223089202432552900065627581573134272382867794155536921843099412068973067349191660999485322627636382128280674294817868015118696210354363213956967489353153484409383176270106801334543263066339696407798255083312567536686239788080526275474333505789119578999301680531157039201946004668418812018117233005205504485783887290043902169686175736998649680822373132137359701557474667103365291137407983461844626020691170465107746752692566067094036076770438372664607028468227871486171811322742518615323377490331554330034073163796607314928375810082724001411651488490633530229313273762327781752159642988845352821988737431512906075268661568369828760252468513454448469324684241533808034304365088930574753450166496753505787002088410498275439730139316053420900756086439228181538009938690231215865229424482992257880093701338666152984115711238853339460043091215781132399072992765497609311739575741177302016172873392050104150868707250379779002844394758051278869038922674616925975520854674881183753378167247184018439644188945515250397774864536228561866773402471712709408576339109622286320931327205403702264067979124101260249080204828796505511730545941363522473275021389825742315649774228214282681694869079081910617209296133636897842951690877726696403590900753316060860570124950589497994766216723884948911689224487480256448881306870039100453616009118170613708506396251939265538260875930058908375831747474685329737118151062892594399584917690457059118407703626624142782915202748008724511658865320312411737371550100488769573619300794920897406791953263089042830025830240226118007895749265826425185899786713659484871841619099742641844919328547055459808315800421021185759655025111791592529948793180458248902883255808630481635155280920119829188221594800478279634750387655579938559885766073447929964503084112604282149107589314951410755377765357424304193535)
+def bfMask5 : Nat := (nat_lit 21013889368097051692431489707716988809650347568618260794209562727225797552824138934433713981491780898496107170562334398593081354520372425291727447628656838296944728898957493540101141318747005936899654456153734855193094933228889110020846463911491147554553224078341022004793250191960192665708926140494463157610409578973489525434922297317326356833708344500382784023335002799280844338480583017565475484529056506643472592542848359665371847202713749182408019604876754340444467283190186372872967795618508625119864936265143275079571180792652061290588611746840606299689270331998102542494961121118352573411430278265554250842582311521600633331115605581442632726398237927414099224582284297737840016325536050372342719729953722568491808247714466663488186686169054300473629491664582255048391613903455850327690619861204794287696605598489992169923601164579593617840232770747078110420452278955356777049004440668843353499808068406365479681325579720278621074688761336895990477967913786747712708099473905981388622652446895307220653533113913862034525095922020304291398127072057656348579438747266771510662027051751665429768759957841346939165185069050009748386601071288913782855071437262906331323175035642228798158008566134734693125244199828674218246211027233094264187882281621677683174996197639222559396936255270508378601067023950257094268175115387263207166147902342136262466442047001846456210767791876521004011581483743121832208388614334104737231112102800725999497479902592242478805030980882172623218077118681035724531927681163509779541822659575841422297211411999131983664806335642317503433595139114747285903542614042109636922437837339849296231339282586832907455909379719424083876597454090571302224688240479054446423248053030451349134049180753682236625037063162759000678051341411529654902167637623901343764125313363530653200590884991425234522212196912125043904954849390345967345053924799120114618940882181305255419397932747371533205711463686384646380731541587009697493867187352630349306541741262293441508069028641562330044112231909563131091263507152195860302166877392054423389447697591719566744322914245096180585077367470967817216466299780045287671376837078141827835160268584160876110842018009921701536348517343309758677512057532081591085412439952711698729524442576665793547327271744444604175588820132832101102470715638209530132773981137468212363486237749714558996806798496910161942537181007203021916153205721051237416739556657222125419408097460321935062946283674528104628742103528981625670352982996207129506021094305227540924724920349485178580535136750521762145126744046694699846726591732848762344659894681042171145150691141805710557969337180339135605881340076877830816586923418541522078701301510257735807099805201699395478246288067592372300061278938361600744944167315233880817016567978724058560789044345511203263632661584193264247125266222972764211900604950472397731121906230903572198726883092822408523509073502690095150736827237845556052558328818813551483817975060014894710543934424531453092774540537749022062893756543170475467651630840735325484097129336721776967512208890229345844813093550528403747361627724682546785511186334264341601686702144057993009603619915082440982130927592688724128068861207784323191314339399642762576002221898348675995028524307962545235924456970561172010515071592936840017968478456402024367582647057471050655912245007182544014705832773541290197750880643360460271210972542651823250465962258073606902572513161911227588000701366420783883091929527788917233746509430139309076661706675382674198721335120592462679735563374578430082991059896531705131396254699858817591830090098852651437980845860269277420736544071155176754162279270533286772255132085196568684666362203853864689298442259127749965541483931778188203037556735)
+def bfMask6 : Nat := (nat_lit 371162357303175640058638836405671727851214755042607757519896794792340277099499222193552453231391896060289197707653415745002337399442598497994181280872956620876246687395732235297443364193386130030248234533914380823108076203500407008251351354815280148370443726021333011202511902557091487608848864236323621150974742011038427404542128553118418739005772500758526411995936515972655759484486556734110147053970964016777849483098305161278874169720561724664270408285284995889368672853325857973133088111592863128231636297070843277999540367504135362720774855589228329322750459893317769943732259913023121860888949942302441433768963712004475413654474342053587966799983547987720731402971346003950678239869073689587851546197359510406931768719382147400529708232382582827222463949219358648406708840189067619126989198038688008663688180310661670858360048883666191777385860033586691494865869171299704460663651072289712678049162415775960600726510127334922872908049173534955842207282311553291519046807297593527877123002116249698771520124255549277768728449110755080592138587238600283391364133283934978877608704491524906779431984558386236893639700171069604679663611364896274184643499663625614992350861059383809356456042157245848443921006770295215796674105796470207932513487562035886355335154773296040179501149853832110199487686784357322740461867576917717684438278477354613440080407401725237850716653379874220459573728018031648440804564009995407201844576827555834267068123272889814341296292501869138786399488168521661467130389364336655864087102122075846249971734099114310066775271430457967509260713519960823318748161854408304611653009363101901371890219157284850620400402355523646893000038566344585487091558267626782248292716111949688545375737405302499508891690864377159637113778583578233994585799343462399773888999462249987896857906391239252707626064915965263712531964509510578682691144239931291299178457905336967779885319830152230586341767255973400709256789773858918197671769585431875036753688010945094711110906804368702855664868774102861969156649815649017389013507824796668174009770807220877187696903279723082221047758244620506799584033443041079745951176610586521406196168587327885267440575545671083564695539848912557633971099723059997013885369440320680229162461902547438076350128862147297552526336442951384637731618728576098510916196843507508075910292419542116548765967810976515171145821196420888601138656698328594221131999388117013141695231224491838290162080336623901512750192919697584934262780595763564132015116114034883035135)
+def bfMask7 : Nat := (nat_lit 115792089237316195423570985008687907853269984665640564039457584007913129639935)
+
+theorem rep64Lit_eq : rep64Lit = treeAt 64 1 8 repF 0 := rfl
+theorem off64Lit_eq : off64Lit = treeAt 64 1 8 offF 0 := rfl
+theorem mask32Lit_eq : mask32Lit = treeAt 64 1 8 mask32F 0 := rfl
+theorem bit0Lit_eq : (1 : Nat) = treeAt 64 1 8 bit0F 0 := rfl
+theorem bfMask0_eq : bfMask0 = treeAt 128 2 7 (fun _ => 2 ^ 2 - 1) 0 := rfl
+theorem bfMask1_eq : bfMask1 = treeAt 256 4 6 (fun _ => 2 ^ 4 - 1) 0 := rfl
+theorem bfMask2_eq : bfMask2 = treeAt 512 8 5 (fun _ => 2 ^ 8 - 1) 0 := rfl
+theorem bfMask3_eq : bfMask3 = treeAt 1024 16 4 (fun _ => 2 ^ 16 - 1) 0 := rfl
+theorem bfMask4_eq : bfMask4 = treeAt 2048 32 3 (fun _ => 2 ^ 32 - 1) 0 := rfl
+theorem bfMask5_eq : bfMask5 = treeAt 4096 64 2 (fun _ => 2 ^ 64 - 1) 0 := rfl
+theorem bfMask6_eq : bfMask6 = treeAt 8192 128 1 (fun _ => 2 ^ 128 - 1) 0 := rfl
+theorem bfMask7_eq : bfMask7 = treeAt 16384 256 0 (fun _ => 2 ^ 256 - 1) 0 := rfl
+
+theorem hand_eq (x y : Nat) : Nat.land x y = (x &&& y) := rfl
+theorem hxor_eq (x y : Nat) : Nat.xor x y = (x ^^^ y) := rfl
+theorem hor_eq (x y : Nat) : Nat.lor x y = (x ||| y) := rfl
+theorem hshl_eq (x y : Nat) : Nat.shiftLeft x y = (x <<< y) := rfl
+theorem hshr_eq (x y : Nat) : Nat.shiftRight x y = (x >>> y) := rfl
+theorem hadd_eq (x y : Nat) : Nat.add x y = (x + y) := rfl
+theorem hmul_eq (x y : Nat) : Nat.mul x y = (x * y) := rfl
+theorem hsub_eq (x y : Nat) : Nat.sub x y = (x - y) := rfl
+
+def initBitsSwar (seed : Nat) : Nat :=
+  let x := Nat.add (Nat.mul seed (nat_lit 64495473597036925597877671431355483327460757267394701351341934674163243919972535654500222330011198456062459660073080066644043931925433095059446135688125697102137755107791711673569069497977208737611317215162294102845112920164068826746740536668381694780670435305432902817698452103678197510320870450251039498006451966678266913848521862291790362209950509875535365465251029318250325526652290503859026866942453145067537453809142862672133148066856435908308193373682157478494079952177347209792722788388935167072571106515279132666675621596779351106004593594748763577241018394247406903536887862825189134947666031832639370798643497992125751728253962001831733076352637495781064622403625791398585222275792907711603337083171129358655010972222311831287023585362297807007937907544114005241142216663929666584027667267801492665247487567769272955120403328613556764662716253512497155792079501892493734865611738876446901098134209708758427636134139600471217264981797049644820697669538038874942555401615906305433759619156051540966759458236911080395019913945567074925798708846063716903046518295039546720361038471995538682337889811471184209572757462722303416867815619421995067360153606239037396245076158020306017074922401610476600739280720773577661513634867440283826546491080515463579780578575430742353911282282178818568359247958244672441690143632447030759425557396385462225123742653618559557835296858290279389958376512070414811331272585905304167157578555517722760998823715178066378916205299045536866291977607577640226964517962634629997584258678467751913905375824746562702874483094546585439239769773945554011772855752201498645086416398190263335951429683854593142689956151637653306811791477138395368436794297576646530455085320074454159758964715712854047685794596886727605320169177523821430298265456199899101217443978097694922433719368370867250358765784472373764827756462929266322565686353689488594822976677988155919478221313139279956734979963948878050896903056008873045970500565611839243696009191196989780989762086306986454052283660628068156436498317738049051270158125328788332397230682590108886872739474386857081778492936370914581831086853402072817495316401732598003087607932943613657968356259451305566235310530242134452393315821351806998356681176082776026346149764938358509915524182963803089617785160677597738675341009532183273262429463570288237374872338887720693144184836604494199744916434180962409263636993928676794249959185547005385859257482026717108596180715928337961997070792347172831393262998571033967024742912043949681829107572891541273287315408689559111653808805568892218013741739262217610515010427586460602411477882634173682396650644050633732374305176583848080114514907166530991376358569309428567700745330535726848188947589745078204435912409926861313120510726967361800277794242547926663971259314163665188135105692799589299098908985771879789380555276801060727599526991699705033417221861624940290215443202824501370846474734683335887860914125184132128728786815865963739178851599980185805104981589737905861285312087816758322006562593493515250608584812711057152762880039226201859698138336666171053977205145940830892999592982828216831323662489067566692315722124128967301000231529616430158137525520017966716908553332879607317908245688390878990297630497063029025591236675303998662458280296122773564971377074599348195811179885607259829661871717021407932505381477962887902449919074074691113956992898617615835245894049076778857166181996437613801169189194256156418837714505422869945233308063380305157836000863642385325032747861963368280277873111189797526195451548911275395939150855830322548268018519053434146587249165267007152440016050523430629840499499751279320073149814211159241868139306103908969042088357554988654966464412665310847403384002074221761197146009572233092270512738902226139404838059853946972209628092225446991908272637856280012116840504914505810038859309291494541818806341893016284066508827396593382961248202989079533081419207220023557066255068686072405551783209106042192991079919524461948646076619023194611714076968381279741164411229757701867294668621241681134655153600160516703619515182105648862566439655850923186156933634695955521859724127570446324889236180968056982085500399697287374958281295022050344863737223400044076017162581119157498242112990782551147421536902370599945567628110946892200144426277595174158994416181806004794256674436741500101453324769319602779887779987333253711580856048493030352807360535040336676671205141553621987120305628117139776987765253683094798870617240446076192949429729484574547725236209712265526687732064262641095452497380844619384699306288618924734745077543770104360081179373074023286805349268375248622171009713159257991662856535235905952459520310725923457139594274987454394349471917227540613562807171316953078939564243929808040098788359388767075035848164607617301991947412914631182252254617539787977712174151750692509558304612960500545221930200507348199096519833863692707959080501708324864)) (nat_lit 43826967565969896376515058871281116785527046606263239372005240864641533568987433351594532884235979029676094315515211500000934062182898411000310040400187156018197468837325510714655449415810351201570375136810250717971062426291361275009042967763033764237470723927628339297712528375749635110005750357014513149149375416617234524554683907852953748575289068151202670848874120568715053986031845395403706954051401164180938620777553156891477978849115371418631183217803912318475868092060245122761874613611816109192745349695246397569794312143798254269502797025317559348440100577323257139262096108122911656996693241105990533824323240863902321929230349369642914218068977981702642824938823193713671568570656835880290157359411495196968962629764523162724230336757301310983443790921449674676796491163130021012202808449110888771268312107010519908101536922792204198297980303366775207548348132673146514491990803107686446957436229440633978887790973813467212044334350697162211266163915959184096929918313041287950083047711616429117050917997530808374447552202803383589734014691545567779615729525725938631115905590453036741479007825880661830617639422813221773981779427034759327721415165645984771879827653353434930877537570855571100946454259244638860115264791598277778082193554939456512456014036563715422635787965824369938112577402487000024924939908929182129344372822727670494457409594484009163498609679923112774590412846463986492833536351759142086722503967287620478219043987251251624106614148374568878695229310122390159279457003994705434681942601255769576659632875742592531085039866241344245778391695994263093711554381906569961233104701923668376350299948071722886113313549880261746225695044046195049880348483047207911838552645367426256722780171167201078727247007916467368992151368857298267845668875908870909085068135992356062796275144840681346946344999614917184754848724099821122542926820788612297380104662741229485986820614620561392110288520434732942014267478871104272563261433236652999431307062701117758546052839473168718624628332442638200986586696368907324969268376518234460492353612394283027904067970209101203938439933048975335842363467640826282145308567180014804593721929865709182989161224821906236976235394764470715513205970687512121640298638606419444056500036392467889105993250290627058138904433130417144784146591641645670098096818813589399834076597442766126279377609815549969312435623464826164733689703878582509514675802910100100729176630555904645391716605533957789268525676564910746698111970846730845306499534980323955801437512936573153557425267018011007552362443850842270047045521439146444221785407283762526755818623226241743367013667818058757000372146004484485523760872384059707863480423179998819477540432474523182190772371579190851072884883926740960983409461161041875031240935473153699055238583876808214262255032020795187674276805049682637469818546224029003343205563386796131149824737308385437754600726332048802534977430604160494219573984439829848986427681335316694315766653393670894039107449270202414813667745501420157759460712329495740841574198271838647750231532608596221958099678134208220322965876920999159201460561059135890359873242125776775442964310366164419000535354879228790925781980881723908823225554932415161743278905852653712547061265004757777814053336187160761784999525397847713459897603682413106045428301581087375169413249627172310041949264717949106604739232770682730545991820592104342063773374817877250171041407715789054282879851848970152632267234603816264267909171802565226215093372161642147229618663614677899902248784213583954947829607638979158175767584988324527736115740244215990365124582335991057622105140208515999795000098690551287883502536887563742854949395133289039570057893369276661404701266150911028061464470355820636801122208970385306231224747693244814640959403652409497909371166066062444842108576357607842319034224115761491689027191054422093658159799337816970000548761196235332656703177669016425204236143988120349555299755139298064436843939365934041801377732303437850521053172992448162329441903655832014513867089000440751418416271948551869155681076052038565372625613160494552016734062327177198428335823063709216108492005090912563778932278544406518037046323136953267234512583003668523953960885684808460323606825119450181330170029820026835318123413361236031082074221251071804511199578080677762833564705876753337428134835984369619998621712356090599466695246606928073692731874523838360804011061476311737973396919137816522868021049731965580001062157188001439983131173233570480936042604954184555333253324341859051004412466548174235248228988505232696284007520858574275116656410906716148918812046129968948404295659785520929271345632528976712809829653982893547608416141732775465930077604847496111294301349386923205799033327157912222175677100936297461009397620141794043526133858179127283511084129882609363420608194201550662631752212410869948219754298900044553563190898441298362104713783926023615241990589597000344665348636672)
+  let x := Nat.land (Nat.xor x (Nat.shiftRight x (nat_lit 16))) (nat_lit 277005949774809604350232920208427638410361727859393812160305913787557614127389637934299874477626794352542758717270696196152589094162941521990947233594632188902757932772684601310048869417394180183428843860992531288891126442686621645006271852841447639659651717810247653418928198957421807511378563539760139183690928895871586182259983982635733352687941363483998915289125629886971294760075238550913591684044152905134963930297841767159488178832540865686447309320500580095171739245716870305919248105131682282452053794045085292599337931131962990331611807609212423305937380335786028789248153196916633636789567143303615011109551854240578271200140494252040023656104315931370373033505097063475415838944836008814289624785080695483637597313560982784669324057024709807149315118292703422262164409015381924158653200290349417549420342184488123448170135083604363997852378014701104157907501280668151197240203638642419486020586016219788921752820289816988244741936167098551996262629748594726316870453665907733622278353166896869786584555259451452119726211269924997035120006247070853584723481940814013895575170829457612026548630879582452015035419225359474842514019423507635617963181724972973569154557903481466289228503279579852329537983517546543156343641952227679400534631987823127816921208257652728947620272733470987092841691791456393745046961425212497931591782004620911470364402025288226705912261002972999596283778530638604351751411167193359364969013007341961051367049390160190198784179304906275556440831745418308948088981774955767874050320030838915182397244891970138472512707381107977315458020842425697591220460424458060930632970878978878215348988200647667083384629996267781643305245114669148296215506782734194604079812916154387581141458537045680745918858229716203884423794621331862126551172229606821622028816569424296006740386492360932271077476060873864150951235316506078753764543378324156100040191146506876071519614004705161194025753927640710280545544042343662962250331464081851216471894398210473011800240890519474150162578542460431890925704019007439052311107357765657009623694730295043559607270869547041344077767596101594118203119249666362236350887761118589758643585091775373740089406279251892052032115001559075904022025929312073747094064396017659245966771589582187491072109578611130438728341315446602326776546258913010408608182498278781913248273350322917054149004592651221437921613427315253659411725921675780393929018757009224817454366358288800297637559536821897110484371938930843596546613862196222622705379263011825486081672804605998350911676818671215192522362182101405945749030630707642066335017893067814072163295638529624415243331733738158204571423431776827329340381381070211726565387091376986433413394541774911642024959878424188275269567724120502681853347966021493464625448186482642491815013574297072260370300991942553029061787064071844026060973222800228046348872286819969579673849985438134102803137060061285012468275451508729819862413676469383345848869299171501363429077777573320680949139969501413296009222081041144945937265114425027795947600616827690755992388658484854094471682728366904009707775777321570690558896309558687893703661950163493988727354337441844919920415207130391423852350220705034861520760070481161602858583042463586439630945300880303218550079559035208437982058173790227766242622146516975729326273604045022182965009933092441884964180859349366764773552798547480721672402536109910723255223223819890135476228054717357783862300350997593671312305713338326559815499276878197800025436682935799546803596871113841251833858524720078912681370180331020682296828735862495414112198433788834017028471028837845662260948386273202186366196417895605314124015459672255167860653022220282893692936974198942437177003974178893870606269961234994626919042158452498071418569506465935471437890231843954722304626540221538597002160619536101562404033687339089225204383412513258678782783054369093328968085018497168574231971284215617836738566067194829046729131668134659603846885312040597405786766481088796021906868608768795703732184470310345578547211449740060294391031856095762764162375815890925992347025830899731099476808086470770480101226698504606235162172705637474773952213894788506177753625110409277175662220151529952535033222605977298008052207144604565952903895287105693634840224574317334735741742947239533481510905138809864262710147588475564625945620541267289304981211853241113342009098815751838957177139476380499400749924933271947532091815551208651923474623903167547771106045379706270455533903984179048459795910277036944889469306166863941797479758893730881795291449476800799734006543918806112453796658212731529225285568952381533630897380138723870619718298615146344200659351485115231175509464545956078957087891660640353159035014685013234008536490229197775553094981709229927807852344572701460777651778819575492819931552491828201554760618022346122725507976905113591322154393208312982968557858727951852922296701234763393668614236953109446920115322880)
+  let x := Nat.land (Nat.mul x (nat_lit 2146121005)) (nat_lit 277005949774809604350232920208427638410361727859393812160305913787557614127389637934299874477626794352542758717270696196152589094162941521990947233594632188902757932772684601310048869417394180183428843860992531288891126442686621645006271852841447639659651717810247653418928198957421807511378563539760139183690928895871586182259983982635733352687941363483998915289125629886971294760075238550913591684044152905134963930297841767159488178832540865686447309320500580095171739245716870305919248105131682282452053794045085292599337931131962990331611807609212423305937380335786028789248153196916633636789567143303615011109551854240578271200140494252040023656104315931370373033505097063475415838944836008814289624785080695483637597313560982784669324057024709807149315118292703422262164409015381924158653200290349417549420342184488123448170135083604363997852378014701104157907501280668151197240203638642419486020586016219788921752820289816988244741936167098551996262629748594726316870453665907733622278353166896869786584555259451452119726211269924997035120006247070853584723481940814013895575170829457612026548630879582452015035419225359474842514019423507635617963181724972973569154557903481466289228503279579852329537983517546543156343641952227679400534631987823127816921208257652728947620272733470987092841691791456393745046961425212497931591782004620911470364402025288226705912261002972999596283778530638604351751411167193359364969013007341961051367049390160190198784179304906275556440831745418308948088981774955767874050320030838915182397244891970138472512707381107977315458020842425697591220460424458060930632970878978878215348988200647667083384629996267781643305245114669148296215506782734194604079812916154387581141458537045680745918858229716203884423794621331862126551172229606821622028816569424296006740386492360932271077476060873864150951235316506078753764543378324156100040191146506876071519614004705161194025753927640710280545544042343662962250331464081851216471894398210473011800240890519474150162578542460431890925704019007439052311107357765657009623694730295043559607270869547041344077767596101594118203119249666362236350887761118589758643585091775373740089406279251892052032115001559075904022025929312073747094064396017659245966771589582187491072109578611130438728341315446602326776546258913010408608182498278781913248273350322917054149004592651221437921613427315253659411725921675780393929018757009224817454366358288800297637559536821897110484371938930843596546613862196222622705379263011825486081672804605998350911676818671215192522362182101405945749030630707642066335017893067814072163295638529624415243331733738158204571423431776827329340381381070211726565387091376986433413394541774911642024959878424188275269567724120502681853347966021493464625448186482642491815013574297072260370300991942553029061787064071844026060973222800228046348872286819969579673849985438134102803137060061285012468275451508729819862413676469383345848869299171501363429077777573320680949139969501413296009222081041144945937265114425027795947600616827690755992388658484854094471682728366904009707775777321570690558896309558687893703661950163493988727354337441844919920415207130391423852350220705034861520760070481161602858583042463586439630945300880303218550079559035208437982058173790227766242622146516975729326273604045022182965009933092441884964180859349366764773552798547480721672402536109910723255223223819890135476228054717357783862300350997593671312305713338326559815499276878197800025436682935799546803596871113841251833858524720078912681370180331020682296828735862495414112198433788834017028471028837845662260948386273202186366196417895605314124015459672255167860653022220282893692936974198942437177003974178893870606269961234994626919042158452498071418569506465935471437890231843954722304626540221538597002160619536101562404033687339089225204383412513258678782783054369093328968085018497168574231971284215617836738566067194829046729131668134659603846885312040597405786766481088796021906868608768795703732184470310345578547211449740060294391031856095762764162375815890925992347025830899731099476808086470770480101226698504606235162172705637474773952213894788506177753625110409277175662220151529952535033222605977298008052207144604565952903895287105693634840224574317334735741742947239533481510905138809864262710147588475564625945620541267289304981211853241113342009098815751838957177139476380499400749924933271947532091815551208651923474623903167547771106045379706270455533903984179048459795910277036944889469306166863941797479758893730881795291449476800799734006543918806112453796658212731529225285568952381533630897380138723870619718298615146344200659351485115231175509464545956078957087891660640353159035014685013234008536490229197775553094981709229927807852344572701460777651778819575492819931552491828201554760618022346122725507976905113591322154393208312982968557858727951852922296701234763393668614236953109446920115322880)
+  let x := Nat.land (Nat.xor x (Nat.shiftRight x (nat_lit 15))) (nat_lit 277005949774809604350232920208427638410361727859393812160305913787557614127389637934299874477626794352542758717270696196152589094162941521990947233594632188902757932772684601310048869417394180183428843860992531288891126442686621645006271852841447639659651717810247653418928198957421807511378563539760139183690928895871586182259983982635733352687941363483998915289125629886971294760075238550913591684044152905134963930297841767159488178832540865686447309320500580095171739245716870305919248105131682282452053794045085292599337931131962990331611807609212423305937380335786028789248153196916633636789567143303615011109551854240578271200140494252040023656104315931370373033505097063475415838944836008814289624785080695483637597313560982784669324057024709807149315118292703422262164409015381924158653200290349417549420342184488123448170135083604363997852378014701104157907501280668151197240203638642419486020586016219788921752820289816988244741936167098551996262629748594726316870453665907733622278353166896869786584555259451452119726211269924997035120006247070853584723481940814013895575170829457612026548630879582452015035419225359474842514019423507635617963181724972973569154557903481466289228503279579852329537983517546543156343641952227679400534631987823127816921208257652728947620272733470987092841691791456393745046961425212497931591782004620911470364402025288226705912261002972999596283778530638604351751411167193359364969013007341961051367049390160190198784179304906275556440831745418308948088981774955767874050320030838915182397244891970138472512707381107977315458020842425697591220460424458060930632970878978878215348988200647667083384629996267781643305245114669148296215506782734194604079812916154387581141458537045680745918858229716203884423794621331862126551172229606821622028816569424296006740386492360932271077476060873864150951235316506078753764543378324156100040191146506876071519614004705161194025753927640710280545544042343662962250331464081851216471894398210473011800240890519474150162578542460431890925704019007439052311107357765657009623694730295043559607270869547041344077767596101594118203119249666362236350887761118589758643585091775373740089406279251892052032115001559075904022025929312073747094064396017659245966771589582187491072109578611130438728341315446602326776546258913010408608182498278781913248273350322917054149004592651221437921613427315253659411725921675780393929018757009224817454366358288800297637559536821897110484371938930843596546613862196222622705379263011825486081672804605998350911676818671215192522362182101405945749030630707642066335017893067814072163295638529624415243331733738158204571423431776827329340381381070211726565387091376986433413394541774911642024959878424188275269567724120502681853347966021493464625448186482642491815013574297072260370300991942553029061787064071844026060973222800228046348872286819969579673849985438134102803137060061285012468275451508729819862413676469383345848869299171501363429077777573320680949139969501413296009222081041144945937265114425027795947600616827690755992388658484854094471682728366904009707775777321570690558896309558687893703661950163493988727354337441844919920415207130391423852350220705034861520760070481161602858583042463586439630945300880303218550079559035208437982058173790227766242622146516975729326273604045022182965009933092441884964180859349366764773552798547480721672402536109910723255223223819890135476228054717357783862300350997593671312305713338326559815499276878197800025436682935799546803596871113841251833858524720078912681370180331020682296828735862495414112198433788834017028471028837845662260948386273202186366196417895605314124015459672255167860653022220282893692936974198942437177003974178893870606269961234994626919042158452498071418569506465935471437890231843954722304626540221538597002160619536101562404033687339089225204383412513258678782783054369093328968085018497168574231971284215617836738566067194829046729131668134659603846885312040597405786766481088796021906868608768795703732184470310345578547211449740060294391031856095762764162375815890925992347025830899731099476808086470770480101226698504606235162172705637474773952213894788506177753625110409277175662220151529952535033222605977298008052207144604565952903895287105693634840224574317334735741742947239533481510905138809864262710147588475564625945620541267289304981211853241113342009098815751838957177139476380499400749924933271947532091815551208651923474623903167547771106045379706270455533903984179048459795910277036944889469306166863941797479758893730881795291449476800799734006543918806112453796658212731529225285568952381533630897380138723870619718298615146344200659351485115231175509464545956078957087891660640353159035014685013234008536490229197775553094981709229927807852344572701460777651778819575492819931552491828201554760618022346122725507976905113591322154393208312982968557858727951852922296701234763393668614236953109446920115322880)
+  let b := Nat.lor (Nat.land (Nat.shiftRight (Nat.mul x (nat_lit 2221713035)) (nat_lit 31)) (nat_lit 64495473597036925597877671431355483327460757267394701351341934674163243919972535654500222330011198456062459660073080066644043931925433095059446135688125697102137755107791711673569069497977208737611317215162294102845112920164068826746740536668381694780670435305432902817698452103678197510320870450251039498006451966678266913848521862291790362209950509875535365465251029318250325526652290503859026866942453145067537453809142862672133148066856435908308193373682157478494079952177347209792722788388935167072571106515279132666675621596779351106004593594748763577241018394247406903536887862825189134947666031832639370798643497992125751728253962001831733076352637495781064622403625791398585222275792907711603337083171129358655010972222311831287023585362297807007937907544114005241142216663929666584027667267801492665247487567769272955120403328613556764662716253512497155792079501892493734865611738876446901098134209708758427636134139600471217264981797049644820697669538038874942555401615906305433759619156051540966759458236911080395019913945567074925798708846063716903046518295039546720361038471995538682337889811471184209572757462722303416867815619421995067360153606239037396245076158020306017074922401610476600739280720773577661513634867440283826546491080515463579780578575430742353911282282178818568359247958244672441690143632447030759425557396385462225123742653618559557835296858290279389958376512070414811331272585905304167157578555517722760998823715178066378916205299045536866291977607577640226964517962634629997584258678467751913905375824746562702874483094546585439239769773945554011772855752201498645086416398190263335951429683854593142689956151637653306811791477138395368436794297576646530455085320074454159758964715712854047685794596886727605320169177523821430298265456199899101217443978097694922433719368370867250358765784472373764827756462929266322565686353689488594822976677988155919478221313139279956734979963948878050896903056008873045970500565611839243696009191196989780989762086306986454052283660628068156436498317738049051270158125328788332397230682590108886872739474386857081778492936370914581831086853402072817495316401732598003087607932943613657968356259451305566235310530242134452393315821351806998356681176082776026346149764938358509915524182963803089617785160677597738675341009532183273262429463570288237374872338887720693144184836604494199744916434180962409263636993928676794249959185547005385859257482026717108596180715928337961997070792347172831393262998571033967024742912043949681829107572891541273287315408689559111653808805568892218013741739262217610515010427586460602411477882634173682396650644050633732374305176583848080114514907166530991376358569309428567700745330535726848188947589745078204435912409926861313120510726967361800277794242547926663971259314163665188135105692799589299098908985771879789380555276801060727599526991699705033417221861624940290215443202824501370846474734683335887860914125184132128728786815865963739178851599980185805104981589737905861285312087816758322006562593493515250608584812711057152762880039226201859698138336666171053977205145940830892999592982828216831323662489067566692315722124128967301000231529616430158137525520017966716908553332879607317908245688390878990297630497063029025591236675303998662458280296122773564971377074599348195811179885607259829661871717021407932505381477962887902449919074074691113956992898617615835245894049076778857166181996437613801169189194256156418837714505422869945233308063380305157836000863642385325032747861963368280277873111189797526195451548911275395939150855830322548268018519053434146587249165267007152440016050523430629840499499751279320073149814211159241868139306103908969042088357554988654966464412665310847403384002074221761197146009572233092270512738902226139404838059853946972209628092225446991908272637856280012116840504914505810038859309291494541818806341893016284066508827396593382961248202989079533081419207220023557066255068686072405551783209106042192991079919524461948646076619023194611714076968381279741164411229757701867294668621241681134655153600160516703619515182105648862566439655850923186156933634695955521859724127570446324889236180968056982085500399697287374958281295022050344863737223400044076017162581119157498242112990782551147421536902370599945567628110946892200144426277595174158994416181806004794256674436741500101453324769319602779887779987333253711580856048493030352807360535040336676671205141553621987120305628117139776987765253683094798870617240446076192949429729484574547725236209712265526687732064262641095452497380844619384699306288618924734745077543770104360081179373074023286805349268375248622171009713159257991662856535235905952459520310725923457139594274987454394349471917227540613562807171316953078939564243929808040098788359388767075035848164607617301991947412914631182252254617539787977712174151750692509558304612960500545221930200507348199096519833863692707959080501708324864)) (nat_lit 1)
+  let b := Nat.land (Nat.lor b (Nat.shiftRight b (nat_lit 63))) (nat_lit 10488919888408338884760404291109109293709886478534142027520038210981430692905452858037066804298376258567852228015133613944129501748912156090224164445131245548662439139109839220806092989383592826124880532592857287086744073233588358886544550763379644292705675405698169310960174302977820959314116385200813752406089644148294038832420731217587926947225535849256661596999733876590765289968047986416750580227544094963628881528484149146354456750255166468076822089654974986194477431398535427139133323487967044641409235372645715020466229901353337423602839493190505543993637401452448212468806489670301298272765493927784599406236216732055331080570663376807717461700446515665957679511526297893187256559562721915103268376207309854492942088002449716657462528003675581169965849076794854044170860662618603465927766290199868759209898242730537172603310656867125448618715042349047273661671542519339892545131064122035250793370825966835566476339255397172015662696293006044296563633692947167880266382247363520539417957884875887747360020996551040013217350390259905701871208987372658197468361043245697079092789348160874789406839772089648538247606596959135610345886805160468563637337909572816984645463531355009178959800178111933911245825058755837563551889586131044490714918688472698186704680557073989447926002938324585006771280493621097754016691875674372311377659906788383217942499037333986168136969160856510454190994154985836350876881868629036386787249017479033700022784585638650628292155000405845662535165881391401543210917984150768012069672205542684026351611196922026694683038432562865051866716109025070700436332770472571266122771800355840495776026656018095776421905900395907016744331977782440353526448811684513696931950749502147597014763624010086966460416971563498157894857697929566038672497130694666326503443061512415052571407436524986562951171717964769809703463273135199652191968993456193682117889563250110540751530717558453918619406902521851210887418932507897380498021790126078153705560665082948279659156133615939981859702397074650517179449818078450350722906898583538953636638712943614091815902552338110443898797696130413705439174001415815644282939845252274793488448829859947449592189351233525554098904236974541175329641089300279449490218383988238345360843553558357243320291933397488605066695942042662973389120387610761182730396198244240671566765086718932439145353928882696361619258916241805298527376087439512825572664833141239454231754430105808324733950049087233223949771912083698083795690939492120089832686961441365075989677903649139003697963292350438546753048402592153264070640737497995736086193159056591102945882521124054879212197879068506687895972207299763671029651098309713508561104680379440884859330781815380779300079637517945141943104432194155029056888603264251949780837688449529768377779774082135196912776259267436419568214725692872801408387408963677284460472899609247892759510778865320652154391273996283476839922395071646456294669210573168991096895936924013620309274994380743437061855005103823485780789314050995637765439876455542541248246221027202145742299713976266382374931412578374110881097816172639022268410379277928029686214769079873621171654254907974468750890395591622095793293300835119142456746641107963509499883919456922769361062961300228952102745646981214952285938219421040665345920258102292315786279776005485108868324537046190475555053990164857001000903995172487873526242081738855321989072579777853270062376318888464724003315975055673321751866148189056188977508223358548621470493539588537574779153452563883146722929181444663604669494196327897297122157432671615045283625346894450724092864366601228375367858650924415891305711218927332397619832242923633844159378267136894215638887062126611147563193974362038228512745694109225747441010183792226610395620716284116288517688117417189950072433646215215012536462275199307361124213390575065787707640163254144845660173027570395438639377214575062629070446309142223237135963665449573411205083907610270883351556720880626440304014814846979861521473372086316705075693724212664672234669942081882567950261698262995294301863240152856007083783388667739805845810994386619434004406332044546887423601825925739092087958402077466072287807306873639931205340220432060911703879007442992818126032509083249925029290116092564270056104334375836186380087427641495429855790207462116420856235639755829980503478342065529819345854297779211106444871270613493679347253939824254617169272473902817006000443215299447862363613901827894874646783619256734010618759657031904249895695731721829729934936803200196318274127666455811914562540921934117700886416742109939439584008647843151867032705601389867811230239842459112021475614524738661340828998769018001416511050682964829132150346278624623399898804552698061787326589428743974508577132106028635510155653434680344492078024948991324666124601971807450309509121310443412711137158517842161250303951401979945015356938736356286569094746483957170179)
+  let b := Nat.land (Nat.lor b (Nat.shiftRight b (nat_lit 126))) (nat_lit 154120825938144258103052093242169301355383368808578214588349422207827094298596761522883738638495055102739390658778121662352913947974112576315426404732853728030362889437696178792495141487710481586959143434438712958391586450722697624806394485860743051091369586306763295786476428528965514263690269778017236432630777501965513796687051393809429648056929545897277754229577960319652777573799222178174919231323242764672556083642323930271785234910916017294521184983324220214603586905443303270496969844028739134608582401301003512889089461374996917787050090504931354901329981216495377818785990178217345109764400138941995471604399189633788368484339587952357837081576739632517374993156002777251663493903326014359305251592396476066164041694310072444251731247927304917056071693193200314618315964479273374227102790258541496586876974411191654932018300998146324365717984120917540152261491641342283835688281314580293262695358781143543679618685100231003780271794715249252322764227105436061155803004388484193975140133208886146393515936543011643661777817176073613848462040883283870100149418379425238166308155432633327920383864815582097985956834799243726583779570486283600945398137319543867055651730126465222730435922443146327304471591693638681255766645533222449377895205793090202923035614404713495509265170047121752660518979884904588881169340744917998192490574710160057057737606087703610347569571557551798950968662479584365561694080331635124357756729484296139660946234414476392858414485114232172988110468626503091051382405292873418364745825337570044412870097246968843407345462356092131237752980862822302073110797978305332151991983484231335435613046496542471541077020896350110653444013280263187197922683711797386992935409432282300784112428849905605523733585073557320034525909809357305411213345228542164973201571450111049843361870183115391491754766240155066375808796522602151904159152028901473523297332049190630547690635603295014890334397867878621191650041971344200754361730049960854037873367184791713109327797451079291112613700877565425570241743055386052461172336357386950608157391543130226847551786228224553667677706314720598515807317560443368742948751518456791480462160949259799115231562075154856408767804483323580851531934043273683327864914208096261851244324428398820256282674394488329292542023912290538027787024023035652680481455323727324013175072283298650211815415033790307776522775679886163801363898226615869143307271546471262097869489462698809536608250943415434224671743029154655538861124704746902606047865556698686430641983431763729621554102597596819987200205250011919991114081030242310040254267120010347509705446463598962239444977885585684539025289235888908660054430661656239557933091469410594695090411060084427092798704410710294250320706892300220240563548831661193664451317162320678538730734993239004018060991775946400926808749384702798049127067858971258928586309488017182180804162549499093817453707257383395948399910911137482920004653803233442496345019435387245016029332385861513028375660632322593065316308292879928079369247114452957211520524225236982220216889104828105123426275848845457512827024709731727786631634222477677397797497154269895778685934205443867611770797599608796362156048832084869324224755614046840991537778327456235768849172921573827871278417979900068295246386053119714560277911784018477960413705625483003571162153718398362487912146858882953624913312317600182335846006419356935717244276961463843114664498622916951603581226564036433610676388025685088655215358189886265286878225104545103242694145380649540077709484424931489647632971505171829029542724731212850198699508980875881928090509569946110884694214256878516611704731844732259518391382912500018334697381040615023910292597317557465566496233697760745620062526041469276821545803813515802428230001276979873071185559095942512871467114338152716791761386325991330050501478092329691838081955834578573496246931983369279169296554252614419300600589671557029647046430659167685392020109033012495936481408195080831200781719623391594303554985564595454011762941471449622080415173402879917714609163057601908798764189240323076723149953465499075601159352727489957209627353939869785893410970344388594919213200366857132742642468085194370316825581233055066254417431555045756723398160010639091040034592055894344624668511481595130069654886252204403006528359874883105761703468268590214963645647255483072531230582955017146689001079697861485574079847997124408787871171655999336335592078104896913581794854229707573317659467672134555277187066047084694385045605261521088100333817004278465845266914587057508780960329012914179636030408169698791063730232795721411286449154361640193713129152082205547941846205034440815111737898662224230180273534963943899853648656577268390187650259800198659580038946105923885423306916752559331801846830802585768235614714468258058729303552107747850312673608353244548251599805167267740727452963144990735)
+  let b := Nat.land (Nat.lor b (Nat.shiftRight b (nat_lit 252))) (nat_lit 22627228321087156909406875421593889229810013477653919221703861365329314453787682709931557696130469613920936982747984865901797063149724859089191337414468444486890977126762404696181248219555786913712723873789931201060986805424217680501587955579515749661784795372096354316354338153998038218851370258573715217483615135134927316609751321321310998818760342020605928286793473311103171115673689944747030821424014139892865084103156365473576668656123564892223431805996216666216869938701746826202370245674570803389936901240265240425590806359516139080440457806768601657384579645804456521923217556819214432188219523421197765096876751235813188416607897001628007877283075103648643846251696367838038079918821023795600645284745793441604829827401513165210126747311444984220365387516725616110617901858656084743518131875772788966700061867554390725975015289122912146587975276241444114836615137625999252874970328835923350626697948296815127388181565543298925077856907036254349075900614356918663447840087592859615668036686084568858864273823955865821855897804663543320883220088405000924390946204303237939196931649004024580739905407066048617002357397809138010339878138567063228815866220515838419342655737436843825625670864901933939978236062378137519108113722159527464813869723480995609728689744897206226519031839782549620993254395781172776141267691021673852390572577443801853971500560432824130064815689095901647492086357579741193539535985862620339535005297111284756084645079771419063171025287551034976160323991404483062393230919511258437657657890551196661175474896142928344775845678575907423576412082612830768342532569361261875326258966049348934358979167854562092437190875324743998898027708839842797300727640458926635416317427404445953084830084802300007070807561171986717420822005450843489155423398601211503867768234623580395591303310985078158177213169264215739265868839666501844059464045066405589403262217760464951032808164464322983266903643576306974106700396864787023714018262060990304919743783960166284807407432328094511616432384602720922566653732835727144401138882445106630581612616324950470050999501641539872882329759510989440467984689133635323563766720489916911724639905173482704723761545997585513254780336974969675803970242983108094920516787843269922921725062462517443903802652702377941466258261923649418975393350173058966246993129219705498206471180329033522808542689178084962537673891283331548792208587390370388169382420133284356345511521768566036740843855789265274777974104785857241138397307882085508450461932025480720197424823186032347579746114119267987099939792833575525475447881789540906324956244955531690308620712766334370010048897056628314096151228548246273690057308574006604406265362470422022428018187164970154205208881757985451185831431044096187532732634032094037499987593429705538399534977853666843276080382718907572864452411384304603726973732717314004023486804730401249357861082527276084997581797752372860249811069984327449867912907268837366704006890659196175108701279980851167829475755393735780007343042382811098234995814297815214550549330670026959090453605016146666386191170350806420682470672348663118170253594759154352284085724709391525938612499825669071171052858470078596052623155110808899314241758481489861878331030113713960211277360202712063346532596738609985710026349550116034877676658124619317258414482032491671632070063589971848072956194578795239440962237330894860065223420273185068585535023748926414694989733124026287592510555956494612050379619611660423850678747552316528273585199887783973482084625641761893827273476524485586415765982768278834238191903810297157624686817686811489344476329457268182778271159610479514516607724465730373004403702184873515032182277560918882017668199686438775031411975215941984213516588705508277773552734552343666506175806965135181339383929197396355384680401216680418755732809368751186844508571117214660591450593292559945410902824587855571092902561951565788889191882519207846216480497633633873183442535694405951197872111374401989773199372200107348647146277101259464790786382520490039925788113019202888233503015062055313003782009318054617894686280132911846622192469056477881065997001157356988799709106348793852780304322033862184349498078978645138979805733232809951891133994372471791165328970151762640642676230584467048175847164214253836788206734450984694185588701846390002213078646518220669763875870261274366114002368745100884892887099575100639528920158475180761510187898005519551436941437913487437114294681404499295662865811055592763042107625442317661354021100353084990855991306478917397095189254026287931151064881217783845061437499217106014481584778090596153869534997637939246312235870960701925562729425087892426388059684021745829844760166788113139213006673303504078308652573483996972462208779305839281508219553908924894726815966649520448630297723135)
+  let b := Nat.land (Nat.lor b (Nat.shiftRight b (nat_lit 504))) (nat_lit 433717257056821215534628164624653685111910188684366865820446601723839376035093726662567096704388855329165412587762115796745889206642313229786914714639200469027344543504275428797464189488455935036317600216090467110955693337008920053853949268126968637750935984695963782761390950259509105103455167289335953667261576582742549727473765521009425684264174610921896070276504703389480590728851145781183109189334852633024683837875096070803793240904676697818226000523114917890083688286803055886813289340761302325265787740409129881405907492188990927691439613897424219478489369236764765005682099530970861960889681788060197206940320599355495931311717288275832273134156845638225076292966776401288925313502428465901084294020157414380168479796547891266349264188788489041316059240942610844542765987114670686013841292114882054367014029847038964335130788845729774608944563855698679562790938268132999820482105762731174690648017738757053686406009889608530055043856761929910845536397253347458675235209535655831947556944330182081250632143489622881827190212334058950868894904379223630575193095959677199934543176077757771157196162299041820063561717298105122852112655765638013999788225433017691151051438138435902868366639939204075383569357937612925214674609390329062063169585829252259085173774086422771898163356605355772250174784045365199685332511628218269930126259444155486231886128906606132303137615646245487348116047913298827943466153995162704637691668013315046364656122941182151749372976497527996670365590154326896805735207237978453424697188595410913645323515529855389143893642793344209282517206242529861996906748148861240695427731676288536329656800152862633582324227281270199691519362583048575869519780090261029804200777884772619624354374290791634892246089014030947134843006750292210398396384517730443969480595376520708394993681388238169228736594975534301545218508725699151680106935915317369966655980441597160806248895015376955487492648898508524005852621162611036194991951461017503672575911834878334461873801025195977331015757733968354997527745946503460585875141368121678980208906382282739892820211200541602708296616537330266427414287890119400667350198147830246614648861042431157909817991730945839475192534413252687186144538168728329727975081721598994390731479622151981647406034784949697683854635411273809989571343088617458438627351340368832008059668294001779699524503652605865768075930555242775419132436020920781399235323157573156318631559245324256301279821385682407643802448309198210217015414251000942230213923980609665055014717643174457585116421913937252588266514939864259065148437071063933046945086192182870307212270492062540144090420526090892192403308235484938677002241085223190643262116994575542976355900438324226768108536415228976620171742711636938249753260811084518941458086604133313799453617403737886381138077628009193592672732183378911055715548460971133913145875225414936662522775509619343400493023218230953861600939619744328678835902664171154456397488037099662990430953696090252250701680126109193177690494540655584038901604651921772385495852844029323760509263286525225892335756566739193650562307464137335799640594185346612828455275923696856796225809794251570559532648767176801216247647744386015602466910427261591013933435106537202189873164536399514176547101309964099101112282431035094932284101848740924219483165642066293755304569774942567472022057499575667840745763365221314849065757748490877769675041795109377457844797484839800065112278127659887480133514058878555270544012299005526278187623508361594930386481786415154429644320977216727815387479436535672738216160999798436261548489876014882526598052677205575851616166221251878405833416004992440131639798088858712298868578034144651067959126302765723338367394806646162653527617497406315221202295462955685528254854406418930873110964741370888101324421990051682090151287455088910767124345079037284210612355041487543946187029185417860956794423001089981751436561419563165868611760548808226371004899788897515865160288934277715725794280354547356037160035605814672119334725792055012638071474079758895146307814563395641380415188238910602535701179083835350562850159851565010335192083666073110565678407673444328331541818281277093801853106893991990257273228160659196140329100491317512863909504861637250062670732929683272358569373644191517876698211242915244198468128061568133151183742498873969790925001301576660758356926622489403269179052233613566601568783753663528676707004337576976968574819211216485914342012712660474174981287269395769184238864654334831171744280701248882228181691464426303682880754081069859724235781993178087994243530485010417753682993018989984291077193345935552594172366160239421095935)
+  let b := Nat.land (Nat.lor b (Nat.shiftRight b (nat_lit 1008))) (nat_lit 158116684791756226094357194698851608162884346932040987042178366508115753579226567940703285448663411330246847958616195278675280892639329004697864077713399382788041242721926476098347815101258613715478979965321985052989541456155396298821160849975148687555331335159549493584112472089313546713571846321323718436305104885221322792792316691769440532728189533850421193243994721548450887295895909208866542413031314871611494554113184875438441001188789757884849097006804734174022850830240661481188214594511644567775922934150444991448999596561756590385202091824014572222422087847903029061747141004408206790403289592839653907614744373879022310380085230508262823378895024218667816947339137428417697671025939904501468734339181066905602789334001394180098463480324924593457750106754968478945878926780433537386266298716676298739078834881897439398904583745403277051912306094248889336089875894503981611499386763575130629314263571138687546813171566009020909354438186932684164161039260139309942992637899257079252282001827162264678666814884041001112192322106874843333619670594417750579011030036384049679157689711884565883171741960959116628695667276011172553179638954489138548812840861514587106791907483512355811393833527258083976280274870379741520548313117157315855167930767406991272550064578415294346354507400866335013704219198094955803576937982886735007613785089708451455305403047339454117449353518232104140377090463771518253906521798712144238887395586950945983688097284485846517111004519862012601948336971526003082584591280698928033685062247329176163305699103332390911636147664788430949996619963902878650291992623171608565161228704085762152691846594992539291422117035744334825104350089387036688218405329971503833714151294067466889116623632018934476555410095899173464923780179598098933773455214784004138807159906312272055400772132013259058790598249872041776586224813896409029135893571682359473646986457205270520482339960598203863905253249699599246901514296207459155641706621670911346200805491707740491494850636537130411500560395967756777698845017016938178382897511815539135052078581531153948602493921297438286997374198857319656005884925608409300087933961424639595249720718898646884751107337067686037370985853324722039130697716391498714248883811627914243782470323380283948162113592491672148452488533330989208492673601118132456483372070432285894465377642894550667499591407451873276977773198258050013580284555376017198548978817688180544583510642960201804746794555711784857704844861771273757869343799896606664136814303753771165267223089202432552900065627581573134272382867794155536921843099412068973067349191660999485322627636382128280674294817868015118696210354363213956967489353153484409383176270106801334543263066339696407798255083312567536686239788080526275474333505789119578999301680531157039201946004668418812018117233005205504485783887290043902169686175736998649680822373132137359701557474667103365291137407983461844626020691170465107746752692566067094036076770438372664607028468227871486171811322742518615323377490331554330034073163796607314928375810082724001411651488490633530229313273762327781752159642988845352821988737431512906075268661568369828760252468513454448469324684241533808034304365088930574753450166496753505787002088410498275439730139316053420900756086439228181538009938690231215865229424482992257880093701338666152984115711238853339460043091215781132399072992765497609311739575741177302016172873392050104150868707250379779002844394758051278869038922674616925975520854674881183753378167247184018439644188945515250397774864536228561866773402471712709408576339109622286320931327205403702264067979124101260249080204828796505511730545941363522473275021389825742315649774228214282681694869079081910617209296133636897842951690877726696403590900753316060860570124950589497994766216723884948911689224487480256448881306870039100453616009118170613708506396251939265538260875930058908375831747474685329737118151062892594399584917690457059118407703626624142782915202748008724511658865320312411737371550100488769573619300794920897406791953263089042830025830240226118007895749265826425185899786713659484871841619099742641844919328547055459808315800421021185759655025111791592529948793180458248902883255808630481635155280920119829188221594800478279634750387655579938559885766073447929964503084112604282149107589314951410755377765357424304193535)
+  let b := Nat.land (Nat.lor b (Nat.shiftRight b (nat_lit 2016))) (nat_lit 21013889368097051692431489707716988809650347568618260794209562727225797552824138934433713981491780898496107170562334398593081354520372425291727447628656838296944728898957493540101141318747005936899654456153734855193094933228889110020846463911491147554553224078341022004793250191960192665708926140494463157610409578973489525434922297317326356833708344500382784023335002799280844338480583017565475484529056506643472592542848359665371847202713749182408019604876754340444467283190186372872967795618508625119864936265143275079571180792652061290588611746840606299689270331998102542494961121118352573411430278265554250842582311521600633331115605581442632726398237927414099224582284297737840016325536050372342719729953722568491808247714466663488186686169054300473629491664582255048391613903455850327690619861204794287696605598489992169923601164579593617840232770747078110420452278955356777049004440668843353499808068406365479681325579720278621074688761336895990477967913786747712708099473905981388622652446895307220653533113913862034525095922020304291398127072057656348579438747266771510662027051751665429768759957841346939165185069050009748386601071288913782855071437262906331323175035642228798158008566134734693125244199828674218246211027233094264187882281621677683174996197639222559396936255270508378601067023950257094268175115387263207166147902342136262466442047001846456210767791876521004011581483743121832208388614334104737231112102800725999497479902592242478805030980882172623218077118681035724531927681163509779541822659575841422297211411999131983664806335642317503433595139114747285903542614042109636922437837339849296231339282586832907455909379719424083876597454090571302224688240479054446423248053030451349134049180753682236625037063162759000678051341411529654902167637623901343764125313363530653200590884991425234522212196912125043904954849390345967345053924799120114618940882181305255419397932747371533205711463686384646380731541587009697493867187352630349306541741262293441508069028641562330044112231909563131091263507152195860302166877392054423389447697591719566744322914245096180585077367470967817216466299780045287671376837078141827835160268584160876110842018009921701536348517343309758677512057532081591085412439952711698729524442576665793547327271744444604175588820132832101102470715638209530132773981137468212363486237749714558996806798496910161942537181007203021916153205721051237416739556657222125419408097460321935062946283674528104628742103528981625670352982996207129506021094305227540924724920349485178580535136750521762145126744046694699846726591732848762344659894681042171145150691141805710557969337180339135605881340076877830816586923418541522078701301510257735807099805201699395478246288067592372300061278938361600744944167315233880817016567978724058560789044345511203263632661584193264247125266222972764211900604950472397731121906230903572198726883092822408523509073502690095150736827237845556052558328818813551483817975060014894710543934424531453092774540537749022062893756543170475467651630840735325484097129336721776967512208890229345844813093550528403747361627724682546785511186334264341601686702144057993009603619915082440982130927592688724128068861207784323191314339399642762576002221898348675995028524307962545235924456970561172010515071592936840017968478456402024367582647057471050655912245007182544014705832773541290197750880643360460271210972542651823250465962258073606902572513161911227588000701366420783883091929527788917233746509430139309076661706675382674198721335120592462679735563374578430082991059896531705131396254699858817591830090098852651437980845860269277420736544071155176754162279270533286772255132085196568684666362203853864689298442259127749965541483931778188203037556735)
+  let b := Nat.land (Nat.lor b (Nat.shiftRight b (nat_lit 4032))) (nat_lit 371162357303175640058638836405671727851214755042607757519896794792340277099499222193552453231391896060289197707653415745002337399442598497994181280872956620876246687395732235297443364193386130030248234533914380823108076203500407008251351354815280148370443726021333011202511902557091487608848864236323621150974742011038427404542128553118418739005772500758526411995936515972655759484486556734110147053970964016777849483098305161278874169720561724664270408285284995889368672853325857973133088111592863128231636297070843277999540367504135362720774855589228329322750459893317769943732259913023121860888949942302441433768963712004475413654474342053587966799983547987720731402971346003950678239869073689587851546197359510406931768719382147400529708232382582827222463949219358648406708840189067619126989198038688008663688180310661670858360048883666191777385860033586691494865869171299704460663651072289712678049162415775960600726510127334922872908049173534955842207282311553291519046807297593527877123002116249698771520124255549277768728449110755080592138587238600283391364133283934978877608704491524906779431984558386236893639700171069604679663611364896274184643499663625614992350861059383809356456042157245848443921006770295215796674105796470207932513487562035886355335154773296040179501149853832110199487686784357322740461867576917717684438278477354613440080407401725237850716653379874220459573728018031648440804564009995407201844576827555834267068123272889814341296292501869138786399488168521661467130389364336655864087102122075846249971734099114310066775271430457967509260713519960823318748161854408304611653009363101901371890219157284850620400402355523646893000038566344585487091558267626782248292716111949688545375737405302499508891690864377159637113778583578233994585799343462399773888999462249987896857906391239252707626064915965263712531964509510578682691144239931291299178457905336967779885319830152230586341767255973400709256789773858918197671769585431875036753688010945094711110906804368702855664868774102861969156649815649017389013507824796668174009770807220877187696903279723082221047758244620506799584033443041079745951176610586521406196168587327885267440575545671083564695539848912557633971099723059997013885369440320680229162461902547438076350128862147297552526336442951384637731618728576098510916196843507508075910292419542116548765967810976515171145821196420888601138656698328594221131999388117013141695231224491838290162080336623901512750192919697584934262780595763564132015116114034883035135)
+  let b := Nat.land (Nat.lor b (Nat.shiftRight b (nat_lit 8064))) (nat_lit 115792089237316195423570985008687907853269984665640564039457584007913129639935)
+  b
+
+def f0 (seed i : Nat) : Nat := repF i * seed + offF i
+def f1 (seed i : Nat) : Nat := ((f0 seed i &&& mask32F i) ^^^ ((f0 seed i >>> 16) &&& mask32F i))
+def f2 (seed i : Nat) : Nat := (f1 seed i * m1) &&& mask32F i
+def f3 (seed i : Nat) : Nat := ((f2 seed i &&& mask32F i) ^^^ ((f2 seed i >>> 15) &&& mask32F i))
+def f4 (seed i : Nat) : Nat := (((f3 seed i * m2) >>> 31) &&& repF i) ||| bit0F i
+
+theorem mask32F_lt (i : Nat) : mask32F i < 2 ^ 32 := by
+  unfold mask32F w32; split <;> omega
+
+theorem mask32F_lt48 (i : Nat) : mask32F i < 2 ^ (64 - 16) := by
+  have := mask32F_lt i; omega
+
+theorem mask32F_lt49 (i : Nat) : mask32F i < 2 ^ (64 - 15) := by
+  have := mask32F_lt i; omega
+
+theorem mask32F_lt64 (i : Nat) : mask32F i < 2 ^ 64 := by
+  have := mask32F_lt i; omega
+
+theorem repF_lt33 (i : Nat) : repF i < 2 ^ (64 - 31) := by
+  unfold repF; split <;> omega
+
+theorem repF_lt64 (i : Nat) : repF i < 2 ^ 64 := by
+  unfold repF; split <;> omega
+
+theorem bit0F_lt64 (i : Nat) : bit0F i < 2 ^ 64 := by
+  unfold bit0F; split <;> omega
+
+theorem f0_lt64 {seed : Nat} (hseed : seed < 2 ^ 32) (i : Nat) : f0 seed i < 2 ^ 64 := by
+  unfold f0 repF offF
+  split <;> omega
+
+theorem f1_lt32 (seed i : Nat) : f1 seed i < 2 ^ 32 := by
+  unfold f1
+  exact Nat.xor_lt_two_pow
+    (Nat.lt_of_le_of_lt Nat.and_le_right (mask32F_lt i))
+    (Nat.lt_of_le_of_lt Nat.and_le_right (mask32F_lt i))
+
+theorem f1_mul_lt64 (seed i : Nat) : f1 seed i * m1 < 2 ^ 64 := by
+  have := f1_lt32 seed i
+  unfold m1; omega
+
+theorem f2_lt32 (seed i : Nat) : f2 seed i < 2 ^ 32 := by
+  unfold f2
+  exact Nat.lt_of_le_of_lt Nat.and_le_right (mask32F_lt i)
+
+theorem f2_lt64 (seed i : Nat) : f2 seed i < 2 ^ 64 := by
+  have := f2_lt32 seed i; omega
+
+theorem f3_lt32 (seed i : Nat) : f3 seed i < 2 ^ 32 := by
+  unfold f3
+  exact Nat.xor_lt_two_pow
+    (Nat.lt_of_le_of_lt Nat.and_le_right (mask32F_lt i))
+    (Nat.lt_of_le_of_lt Nat.and_le_right (mask32F_lt i))
+
+theorem f3_mul_lt64 (seed i : Nat) : f3 seed i * m2 < 2 ^ 64 := by
+  have := f3_lt32 seed i
+  unfold m2; omega
+
+theorem cellNat_lt (seed i : Nat) : treeAt 1 1 0 (cellNat seed) i < 2 ^ 1 := by
+  simp only [treeAt, cellNat]; split <;> omega
+
+theorem treeAt_one_lt (seed k i : Nat) : treeAt 1 1 k (cellNat seed) i < 2 ^ (1 * 2 ^ k) :=
+  treeAt_lt0 1 1 (cellNat_lt seed) k i
+
+theorem f4_eq_cellNat (seed i : Nat) (hi : i < 256) : f4 seed i = cellNat seed i := by
+  by_cases hi0 : i = 0
+  · subst hi0
+    simp [f4, f3, f2, f1, f0, repF, offF, mask32F, bit0F, cellNat, cellBool]
+  · by_cases hi1 : i = 1
+    · subst hi1
+      simp [f4, f3, f2, f1, f0, repF, offF, mask32F, bit0F, cellNat, cellBool]
+    · have hact : 2 ≤ i ∧ i < 256 := ⟨by omega, hi⟩
+      have hb0 : bit0F i = 0 := by unfold bit0F; rw [if_neg hi0]
+      have hrep : repF i = 1 := by unfold repF; rw [if_pos hact]
+      have hoff : offF i = (i + 1) * 0x9e3779b9 := by unfold offF; rw [if_pos hact]
+      have hmsk : mask32F i = w32 := by unfold mask32F; rw [if_pos hact]
+      unfold f4 f3 f2 f1 f0 cellNat cellBool
+      rw [hrep, hoff, hmsk, hb0, if_neg hi0, if_neg hi1]
+      simp only [Nat.one_mul, Nat.or_zero, ← Nat.and_xor_distrib_right]
+      exact leaf_mix_eq_x0 (seed + (i + 1) * 0x9e3779b9)
+
+theorem treeAt_zero (W step : Nat) (f : Nat → Nat) (i0 : Nat) :
+    treeAt W step 0 f i0 = f i0 := rfl
+
+theorem initBitsSwar_eq_spec {seed : Nat} (hseed : seed < 2 ^ 32) :
+    initBitsSwar seed = encodeRow (initRowFor seed) := by
+  unfold initBitsSwar
+  dsimp only
+  simp only [hand_eq, hxor_eq, hor_eq, hshr_eq, hadd_eq, hmul_eq]
+  change (let x0 := seed * rep64Lit + off64Lit
+          let x1 := (x0 ^^^ (x0 >>> 16)) &&& mask32Lit
+          let x2 := (x1 * m1) &&& mask32Lit
+          let x3 := (x2 ^^^ (x2 >>> 15)) &&& mask32Lit
+          let b0 := (((x3 * m2) >>> 31) &&& rep64Lit) ||| 1
+          let b1 := (b0 ||| (b0 >>> 63)) &&& bfMask0
+          let b2 := (b1 ||| (b1 >>> 126)) &&& bfMask1
+          let b3 := (b2 ||| (b2 >>> 252)) &&& bfMask2
+          let b4 := (b3 ||| (b3 >>> 504)) &&& bfMask3
+          let b5 := (b4 ||| (b4 >>> 1008)) &&& bfMask4
+          let b6 := (b5 ||| (b5 >>> 2016)) &&& bfMask5
+          let b7 := (b6 ||| (b6 >>> 4032)) &&& bfMask6
+          (b7 ||| (b7 >>> 8064)) &&& bfMask7) = encodeRow (initRowFor seed)
+  have hx0 : seed * rep64Lit + off64Lit = treeAt 64 1 8 (f0 seed) 0 := by
+    rw [rep64Lit_eq, off64Lit_eq, Nat.mul_comm seed, treeAt_mul, treeAt_add]; rfl
+  have hx1 : ((treeAt 64 1 8 (f0 seed) 0 ^^^ (treeAt 64 1 8 (f0 seed) 0 >>> 16)) &&& mask32Lit) =
+      treeAt 64 1 8 (f1 seed) 0 := by
+    rw [mask32Lit_eq, Nat.and_xor_distrib_right,
+        treeAt_and 64 1 (f0_lt64 hseed) mask32F_lt64,
+        treeAt_shr_and 64 1 16 (by omega) (f0_lt64 hseed) mask32F_lt48,
+        treeAt_xor 64 1
+          (fun i => Nat.lt_of_le_of_lt Nat.and_le_right (mask32F_lt64 i))
+          (fun i => Nat.lt_of_le_of_lt Nat.and_le_right (mask32F_lt64 i))]; rfl
+  have hx2 : ((treeAt 64 1 8 (f1 seed) 0 * m1) &&& mask32Lit) = treeAt 64 1 8 (f2 seed) 0 := by
+    rw [mask32Lit_eq, treeAt_mul, treeAt_and 64 1 (f1_mul_lt64 seed) mask32F_lt64]; rfl
+  have hx3 : ((treeAt 64 1 8 (f2 seed) 0 ^^^ (treeAt 64 1 8 (f2 seed) 0 >>> 15)) &&& mask32Lit) =
+      treeAt 64 1 8 (f3 seed) 0 := by
+    rw [mask32Lit_eq, Nat.and_xor_distrib_right,
+        treeAt_and 64 1 (f2_lt64 seed) mask32F_lt64,
+        treeAt_shr_and 64 1 15 (by omega) (f2_lt64 seed) mask32F_lt49,
+        treeAt_xor 64 1
+          (fun i => Nat.lt_of_le_of_lt Nat.and_le_right (mask32F_lt64 i))
+          (fun i => Nat.lt_of_le_of_lt Nat.and_le_right (mask32F_lt64 i))]; rfl
+  have hb0_shr : (((treeAt 64 1 8 (f3 seed) 0 * m2) >>> 31) &&& rep64Lit) =
+      treeAt 64 1 8 (fun i => ((f3 seed i * m2) >>> 31) &&& repF i) 0 := by
+    rw [rep64Lit_eq, treeAt_mul, treeAt_shr_and 64 1 31 (by omega) (f3_mul_lt64 seed) repF_lt33]
+  have hb0 : ((((treeAt 64 1 8 (f3 seed) 0 * m2) >>> 31) &&& rep64Lit) ||| 1) =
+      treeAt 64 1 8 (treeAt 1 1 0 (cellNat seed)) 0 := by
+    rw [hb0_shr]
+    conv => lhs; rhs; rw [bit0Lit_eq]
+    rw [treeAt_or 64 1
+          (fun i => Nat.lt_of_le_of_lt Nat.and_le_right (repF_lt64 i))
+          bit0F_lt64]
+    exact treeAt_bound_congr 64 1 (by omega) 8 0 (fun i hi => f4_eq_cellNat seed i (by simpa using hi))
+  dsimp only
+  rw [hx0, hx1, hx2, hx3, hb0]
+  rw [bfMask0_eq, treeAt_butterfly_step 64 1 1 63 0 rfl rfl (by omega) (by omega) (treeAt_one_lt seed 0) 7 0]
+  rw [bfMask1_eq, treeAt_butterfly_step 128 2 2 126 1 rfl rfl (by omega) (by omega) (treeAt_one_lt seed 1) 6 0]
+  rw [bfMask2_eq, treeAt_butterfly_step 256 4 4 252 2 rfl rfl (by omega) (by omega) (treeAt_one_lt seed 2) 5 0]
+  rw [bfMask3_eq, treeAt_butterfly_step 512 8 8 504 3 rfl rfl (by omega) (by omega) (treeAt_one_lt seed 3) 4 0]
+  rw [bfMask4_eq, treeAt_butterfly_step 1024 16 16 1008 4 rfl rfl (by omega) (by omega) (treeAt_one_lt seed 4) 3 0]
+  rw [bfMask5_eq, treeAt_butterfly_step 2048 32 32 2016 5 rfl rfl (by omega) (by omega) (treeAt_one_lt seed 5) 2 0]
+  rw [bfMask6_eq, treeAt_butterfly_step 4096 64 64 4032 6 rfl rfl (by omega) (by omega) (treeAt_one_lt seed 6) 1 0]
+  rw [bfMask7_eq, treeAt_butterfly_step 8192 128 128 8064 7 rfl rfl (by omega) (by omega) (treeAt_one_lt seed 7) 0 0]
+  rw [treeAt_zero]
+  unfold cellNat
+  rw [treeAt_one_eq_encodeRow (cellBool seed) 8 0]
+  unfold initRowFor cellBool ruleWidth
+  simp only [Nat.zero_add]
+
+/-! ### Part 4: 6-Op Lightcone Step & Dispatch Proof -/
+
+def sstep (m : Nat) : Nat :=
+  let c := m >>> 1
+  let r := m >>> 2
+  (c ||| r) ^^^ (m &&& (c &&& r))
+
+theorem testBit_sstep (m i : Nat) :
+    (sstep m).testBit i = rule110 (m.testBit i) (m.testBit (i + 1)) (m.testBit (i + 2)) := by
+  unfold sstep
+  dsimp only
+  rw [Nat.testBit_xor, Nat.testBit_or, Nat.testBit_and, Nat.testBit_and,
+      Nat.testBit_shiftRight, Nat.testBit_shiftRight]
+  rw [Nat.add_comm 1 i, Nat.add_comm 2 i]
+  generalize m.testBit i = a
+  generalize m.testBit (i + 1) = b
+  generalize m.testBit (i + 2) = c
+  cases a <;> cases b <;> cases c <;> decide
+
+def ValidAt (m o L : Nat) (row : List Bool) : Prop :=
+  row.length = 256 ∧ o ≤ 8 ∧ ∀ i < L, m.testBit i = row.getD ((i + 256 - o) % 256) false
+
+theorem validAt_sstep {m o L : Nat} {row : List Bool}
+    (hv : ValidAt m (o + 1) (L + 2) row) :
+    ValidAt (sstep m) o L (stepRow row) := by
+  rcases hv with ⟨hlen, ho, hbit⟩
+  refine ⟨by rw [length_stepRow, hlen], by omega, ?_⟩
+  intro i hi
+  rw [testBit_sstep, hbit i (by omega), hbit (i + 1) (by omega), hbit (i + 2) (by omega),
+      getD_stepRow, hlen]
+  have hlt : (i + 256 - o) % 256 < 256 := Nat.mod_lt _ (by decide)
+  rw [if_pos hlt]
+  have e1 : (i + 256 - (o + 1)) % 256 = ((i + 256 - o) % 256 + 256 - 1) % 256 := by omega
+  have e2 : (i + 1 + 256 - (o + 1)) % 256 = (i + 256 - o) % 256 := by omega
+  have e3 : (i + 2 + 256 - (o + 1)) % 256 = ((i + 256 - o) % 256 + 1) % 256 := by omega
+  rw [e1, e2, e3]
+
+def rep3 : Nat := 1 + ((1 + (1 <<< 256)) <<< 256)
+theorem rep3Lit_eq : rep3Lit = rep3 := rfl
+theorem MRaw_eq : MRaw = M := rfl
+
+theorem validAt_init {row : List Bool} (hlen : row.length = 256) :
+    ValidAt (((encodeRow row) * rep3) >>> 248) 8 272 row := by
+  refine ⟨hlen, by omega, ?_⟩
+  intro i hi
+  have hb : encodeRow row < 2 ^ 256 := hlen ▸ encodeRow_lt row
+  have hrep : encodeRow row * rep3 = encodeRow row + ((encodeRow row + (encodeRow row <<< 256)) <<< 256) := by
+    unfold rep3
+    rw [Nat.mul_comm (encodeRow row), pack_mul 256 1 (1 + (1 <<< 256)) (encodeRow row),
+        Nat.one_mul, pack_mul 256 1 1 (encodeRow row), Nat.one_mul]
+  rw [Nat.testBit_shiftRight, hrep, testBit_pack hb]
+  by_cases h1 : 248 + i < 256
+  · rw [if_pos h1, testBit_encodeRow]
+    have heq : 248 + i = (i + 256 - 8) % 256 := by omega
+    rw [heq]
+  · rw [if_neg h1, testBit_pack hb]
+    by_cases h2 : 248 + i - 256 < 256
+    · rw [if_pos h2, testBit_encodeRow]
+      have heq : 248 + i - 256 = (i + 256 - 8) % 256 := by omega
+      rw [heq]
+    · rw [if_neg h2, testBit_encodeRow]
+      have heq : 248 + i - 256 - 256 = (i + 256 - 8) % 256 := by omega
+      rw [heq]
+
+theorem validAt_extract {m o L : Nat} {row : List Bool}
+    (hv : ValidAt m o L row) (hL : o + 256 ≤ L) :
+    ((m >>> o) &&& M) = encodeRow row := by
+  rcases hv with ⟨hlen, ho, hbit⟩
+  have hrow : encodeRow row < 2 ^ 256 := hlen ▸ encodeRow_lt row
+  apply Nat.eq_of_testBit_eq; intro i
+  rw [Nat.testBit_and, Nat.testBit_shiftRight, testBit_M]
+  by_cases hi : i < 256
+  · simp only [hi, decide_true, Bool.and_true]
+    rw [hbit (o + i) (by omega), testBit_encodeRow]
+    have heq : (o + i + 256 - o) % 256 = i := by omega
+    rw [heq]
+  · simp only [hi, decide_false, Bool.and_false]
+    exact (testBit_high hrow (by omega)).symm
+
+theorem validAt_extract0 {m L : Nat} {row : List Bool}
+    (hv : ValidAt m 0 L row) (hL : 256 ≤ L) :
+    (m &&& M) = encodeRow row := by
+  have h := validAt_extract hv (by omega)
+  simpa using h
+
+def bstepRaw (m0 : Nat) : Nat :=
+  let r := Nat.lor (Nat.shiftRight m0 (nat_lit 1)) (Nat.shiftLeft (Nat.land m0 (nat_lit 1)) (nat_lit 255))
+  let l := Nat.lor (Nat.shiftLeft m0 (nat_lit 1)) (Nat.shiftRight m0 (nat_lit 255))
+  Nat.xor (Nat.lor m0 r) (Nat.land l (Nat.land m0 r))
+
+theorem bstepRaw_eq (m : Nat) : bstepRaw m = bstep m := rfl
+
+def sstepRaw (m0 : Nat) : Nat :=
+  let c := Nat.shiftRight m0 (nat_lit 1)
+  let r := Nat.shiftRight m0 (nat_lit 2)
+  Nat.xor (Nat.lor c r) (Nat.land m0 (Nat.land c r))
+
+theorem sstepRaw_eq (m : Nat) : sstepRaw m = sstep m := rfl
+
+noncomputable def biterRaw (t : Nat) : Nat → Nat :=
+  @Nat.rec (fun _ => Nat → Nat) (fun m => m)
+    (fun _ f => fun m => f (bstepRaw m)) t
+
+theorem biterRaw_eq : ∀ t m, biterRaw t m = biter t m := by
+  intro t; induction t with
+  | zero => intro m; rfl
+  | succ k ih =>
+    intro m
+    show biterRaw k (bstepRaw m) = biter k (bstep m)
+    rw [bstepRaw_eq, ih]
+
+theorem beq_true_eq {x y : Nat} (h : Nat.beq x y = true) : x = y :=
+  Nat.eq_of_beq_eq_true h
+
+noncomputable def impl (n : Nat) : Nat :=
+  let t := Nat.shiftRight n (nat_lit 32)
+  let b := initBitsSwar (Nat.land n (nat_lit 4294967295))
+  let m := Nat.shiftRight (Nat.mul b (nat_lit 13407807929942597099574024998205846127479365820592393377723561443721764030073662768891111614362326998675040546094339320838419523375986027530441562135724033)) (nat_lit 248)
+  let m2 := sstepRaw (sstepRaw m)
+  @Bool.rec (fun _ => Nat)
+    (let m4 := sstepRaw (sstepRaw m2)
+     @Bool.rec (fun _ => Nat)
+       (@Bool.rec (fun _ => Nat)
+         (biterRaw t b)
+         (Nat.land (sstepRaw (sstepRaw (sstepRaw (sstepRaw m4)))) (nat_lit 115792089237316195423570985008687907853269984665640564039457584007913129639935))
+         (Nat.beq t (nat_lit 8)))
+       (Nat.land (Nat.shiftRight m4 (nat_lit 4)) (nat_lit 115792089237316195423570985008687907853269984665640564039457584007913129639935))
+       (Nat.beq t (nat_lit 4)))
+    (Nat.land (Nat.shiftRight m2 (nat_lit 6)) (nat_lit 115792089237316195423570985008687907853269984665640564039457584007913129639935))
+    (Nat.beq t (nat_lit 2))
+
+theorem impl_correct : ∀ n, impl n = caSpecN n := by
+  intro n
+  unfold impl caSpecN
+  dsimp only
+  have hseed_eq : Nat.land n (nat_lit 4294967295) = caSeed n := rfl
+  have hsteps_eq : Nat.shiftRight n (nat_lit 32) = caSteps n := rfl
+  rw [hseed_eq, hsteps_eq]
+  have hseed_lt : caSeed n < 2 ^ 32 := and_w32_lt n
+  rw [initBitsSwar_eq_spec hseed_lt]
+  simp only [sstepRaw_eq]
+  let row := initRowFor (caSeed n)
+  have hlen : row.length = 256 := by simp [row, initRowFor, ruleWidth]
+  have hv0 : ValidAt (Nat.shiftRight (Nat.mul (encodeRow row) (nat_lit 13407807929942597099574024998205846127479365820592393377723561443721764030073662768891111614362326998675040546094339320838419523375986027530441562135724033)) (nat_lit 248)) 8 272 row := by
+    change ValidAt (Nat.shiftRight (Nat.mul (encodeRow row) rep3Lit) (nat_lit 248)) 8 272 row
+    rw [hmul_eq, hshr_eq, rep3Lit_eq]
+    exact validAt_init hlen
+  have hv2 : ValidAt (sstep (sstep (Nat.shiftRight (Nat.mul (encodeRow row) (nat_lit 13407807929942597099574024998205846127479365820592393377723561443721764030073662768891111614362326998675040546094339320838419523375986027530441562135724033)) (nat_lit 248)))) 6 268 (iterRow 2 row) :=
+    validAt_sstep (validAt_sstep hv0)
+  cases h2 : Nat.beq (caSteps n) (nat_lit 2)
+  · dsimp only
+    have hv4 := validAt_sstep (validAt_sstep hv2)
+    cases h4 : Nat.beq (caSteps n) (nat_lit 4)
+    · dsimp only
+      have hv8 := validAt_sstep (validAt_sstep (validAt_sstep (validAt_sstep hv4)))
+      cases h8 : Nat.beq (caSteps n) (nat_lit 8)
+      · dsimp only
+        rw [biterRaw_eq, iter_eq (caSteps n) row hlen]
+      · dsimp only
+        have ht8 : caSteps n = 8 := beq_true_eq h8
+        change Nat.land _ MRaw = _
+        rw [ht8, hand_eq, MRaw_eq]
+        exact validAt_extract0 hv8 (by omega)
+    · dsimp only
+      have ht4 : caSteps n = 4 := beq_true_eq h4
+      change Nat.land _ MRaw = _
+      rw [ht4, hand_eq, hshr_eq, MRaw_eq]
+      exact validAt_extract hv4 (by omega)
+  · dsimp only
+    have ht2 : caSteps n = 2 := beq_true_eq h2
+    change Nat.land _ MRaw = _
+    rw [ht2, hand_eq, hshr_eq, MRaw_eq]
+    exact validAt_extract hv2 (by omega)
+
+end Submission

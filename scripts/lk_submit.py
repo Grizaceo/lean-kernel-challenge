@@ -65,10 +65,12 @@ def submit_one(problem: str, file_path: Path, expected_sha_prefix: str) -> dict:
 def main() -> int:
     root = Path(__file__).resolve().parents[1]
     targets = [
-        ("fib", root / "candidates/fib-v2/Submission.lean", "405e095e2bf04732"),
-        ("sha256", root / "candidates/sha256-v2/Submission.lean", "b628f69e2e5f3408"),
-        ("ca-rule110", root / "candidates/ca-rule110-v4/Submission.lean", "28f640e5b2b87af9"),
-        ("permanent", root / "candidates/permanent-tbl/Submission.lean", "2d007c036c58e315"),
+        ("ca-rule110", root / "candidates/ca-rule110-v5/Submission.lean", "16b9fd21fda4c86e"),
+        ("primecount", root / "candidates/primecount-v2/Submission.lean", "1a1da51f05bb9252"),
+        ("mertens", root / "candidates/mertens-v2/Submission.lean", "2c906a223e62d38f"),
+        ("polydisc", root / "candidates/polydisc-v2/Submission.lean", "4464f8ef43403588"),
+        ("sha256", root / "candidates/sha256-v3/Submission.lean", "20d958db51bb508b"),
+        ("fib", root / "candidates/fib-v3/Submission.lean", "7c8ba7edfd1606f8"),
     ]
     for problem, path, sha_prefix in targets:
         submit_one(problem, path, sha_prefix)
