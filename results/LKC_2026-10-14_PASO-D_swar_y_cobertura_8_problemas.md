@@ -10,7 +10,22 @@ Ejecutamos `python3 scripts/lk_readonly.py mine` y `python3 scripts/lk_board.py 
 
 ---
 
-## 2. Resumen Ejecutivo de los 6 Nuevos Candidatos Verificados (`GATE: PASS`)
+## 2. Envíos Formales Ejecutados (`POST /submissions`, commit `4a87f78`)
+
+| Problema | `submissionId` | `snapshotId` | SHA-256 del upload | Tamaño | `createdAt` |
+|---|---:|---:|---|---:|---|
+| `ca-rule110` (`ca-rule110-v5`) | `1460` | `849` | `16b9fd21fda4c86e…` | `144,956 B` | `2026-10-14T08:34:54Z` |
+| `primecount` (`primecount-v2`) | `1461` | `850` | `1a1da51f05bb9252…` | `23,806 B` | `2026-10-14T08:34:57Z` |
+| `mertens` (`mertens-v2`) | `1462` | `851` | `2c906a223e62d38f…` | `30,567 B` | `2026-10-14T08:34:58Z` |
+| `polydisc` (`polydisc-v2`) | `1463` | `852` | `4464f8ef43403588…` | `29,551 B` | `2026-10-14T08:34:59Z` |
+| `sha256` (`sha256-v3`) | `1464` | `853` | `20d958db51bb508b…` | `114,732 B` | `2026-10-14T08:35:00Z` |
+| `fib` (`fib-v3`) | `1465` | `854` | `7c8ba7edfd1606f8…` | `329,667 B` | `2026-10-14T08:35:02Z` |
+
+`GET /submissions/mine` confirma los 6 en `status = "submitted"`. El corte diario `2026-10-15T00:00:00Z` evaluará los snapshots `845–854` (los 4 del Paso C + los 6 del Paso D) y asignará `computationTotal` oficial.
+
+---
+
+## 3. Resumen Ejecutivo de los 6 Nuevos Candidatos Verificados (`GATE: PASS`)
 
 | Problema | Candidato anterior (6 slots oficial est.) | Nuevo candidato | Total 6 slots local | Total 6 slots oficial est. (`/ 0.9927`) | Mejora | Gate (`verify_candidate.sh`) | Crosscheck | Rank proyectado (leaderboard actual) |
 |---|---:|---|---:|---:|---:|---|---|---|
@@ -23,9 +38,9 @@ Ejecutamos `python3 scripts/lk_readonly.py mine` y `python3 scripts/lk_board.py 
 
 ---
 
-## 3. Detalle Técnico y Pruebas Formales por Candidato
+## 4. Detalle Técnico y Pruebas Formales por Candidato
 
-### 3.1 `candidates/ca-rule110-v5/Submission.lean` (`5.54M` local / `5.58M` oficial est., 25.8× sobre `v4`)
+### 4.1 `candidates/ca-rule110-v5/Submission.lean` (`5.54M` local / `5.58M` oficial est., 25.8× sobre `v4`)
 - **Arquitectura de `impl`:**
   1. **Mixer SWAR de 256 carriles × 64 bits (`initBitsSwar`):** Empaqueta las 254 evaluaciones `caMix32 (seed + (i + 1) * 0x9e3779b9)` (`i = 2..255`) en un único `Nat` de 16,384 bits (`x0 = seed * REP_64_2 + OFFSETS_64_2`), ejecutando las dos rondas de multiplicación y XOR-shift en paralelo con solo 5 operaciones GMP (eliminando la máscara redundante de 32 bits tras `* 0x846ca68b` y el último XOR-shift antes de extraer el bit 31).
   2. **Butterfly de 8 etapas (`s = 63 * 2^r`, `r = 0..7`):** Recolecta los 256 bits desde stride 64 hasta stride 1 sin multiplicación de 16,384×16,384 bits y permite una prueba formal inductiva sobre el árbol binario `treeAt W step k f i0` (`treeAt_butterfly_step` + `butterfly_leaf`) que compila en **< 2 segundos** sin desenrollar 256 términos.
@@ -36,7 +51,7 @@ Ejecutamos `python3 scripts/lk_readonly.py mine` y `python3 scripts/lk_board.py 
   - `C3 (steps = 8)`: `1,114,461` / `1,115,034`
   - **Total 6 slots:** `5,543,090` local (`5,583,852` oficial est.).
 
-### 3.2 `candidates/primecount-v2/Submission.lean` (`1.43M` local / `1.44M` oficial est., ~#1 / 31)
+### 4.2 `candidates/primecount-v2/Submission.lean` (`1.43M` local / `1.44M` oficial est., ~#1 / 31)
 - **Arquitectura de `impl` y prueba formal:**
   1. En los 6 slots oficiales (`Q1: 50–100`, `Q2: 150–300`, `Q3: 600–1000`), siempre se cumple `n ≤ 1000`.
   2. `tableGo : Nat → Nat` construye con `@Nat.rec` y `@Bool.rec` una tabla empaquetada de 1,001 carriles de 16 bits donde el carril `k` almacena `π(k)` leyendo `π(k-1)` del propio carril anterior (cero `Prod`).
@@ -45,7 +60,7 @@ Ejecutamos `python3 scripts/lk_readonly.py mine` y `python3 scripts/lk_board.py 
   - `n = 50`: `239,146` · `n = 100`: `239,897` · `n = 150`: `239,552` · `n = 300`: `238,464` · `n = 600`: `238,623` · `n = 1000`: `235,769`
   - **Total 6 slots:** `1,431,451` local (`1,441,977` oficial est.).
 
-### 3.3 `candidates/mertens-v2/Submission.lean` (`1.88M` local / `1.89M` oficial est., ~#10 / 30)
+### 4.3 `candidates/mertens-v2/Submission.lean` (`1.88M` local / `1.89M` oficial est., ~#10 / 30)
 - **Arquitectura de `impl` y prueba formal:**
   1. Descompone $M(n) = P(n) - N(n)$ en dos sumas prefijas monótonas en `Nat` ($P(n) = \#\{k \le n : \mu(k) = +1\}$, $N(n) = \#\{k \le n : \mu(k) = -1\}$), empaquetadas en `posTableLit` y `negTableLit` para $n \le 500$ (`M1..M3`).
   2. Demuestra `findDiv_eq_minFac : ∀ n ≥ 2, findDiv n n 2 = n.minFac` usando `Nat.minFac_dvd`, `Nat.minFac_prime` y `Nat.minFac_le_of_dvd`, y de ahí `factorsFast_eq : factorsFast n n = n.primeFactorsList` sin tocar `WellFounded.fix`.
@@ -54,7 +69,7 @@ Ejecutamos `python3 scripts/lk_readonly.py mine` y `python3 scripts/lk_board.py 
   - `n = 25`: `316,221` · `n = 50`: `315,850` · `n = 80`: `314,099` · `n = 150`: `306,702` · `n = 300`: `314,687` · `n = 500`: `311,004`
   - **Total 6 slots:** `1,878,563` local (`1,892,377` oficial est.).
 
-### 3.4 `candidates/polydisc-v2/Submission.lean` (`4,145M` local / `4,176M` oficial est., 2.47× sobre baseline)
+### 4.4 `candidates/polydisc-v2/Submission.lean` (`4,145M` local / `4,176M` oficial est., 2.47× sobre baseline)
 - **Arquitectura de `impl` y prueba formal:**
   1. Inspeccionando `#print Int.add / Int.sub / Int.mul / Int.ediv / Int.emod` con `pp.all true`, descubrimos que la aritmética estándar de `Int` en Lean 4 encadena hasta 8 diccionarios de typeclasses de `Int` y `Nat` por operación (~200k–280k instrucciones por operación) y que `Int.ediv` hace `@Nat.casesOn` sobre el divisor de 80,000 bits `(f.headD 0)^2`.
   2. Implementamos `intAddR`, `intSubR` (directo sin `intNegR`), `intMulR`, `intSqR`, `intEdivR` (con `@Bool.rec` sobre `Nat.beq n 0` en lugar de `@Nat.casesOn`), `intEmodR`, `intBeqZeroR` y reescribimos todo el generador `polyOfR` y el PRS subresultante `normalResultantR` con `@Nat.rec`, `@List.rec`, `@Bool.rec` y fast-path para `remaining == 0` (evitando multiplicar los polinomios por `1` al final de cada pseudo-división).
@@ -64,7 +79,7 @@ Ejecutamos `python3 scripts/lk_readonly.py mine` y `python3 scripts/lk_board.py 
   - `D5 (kbits = 3484)`: `1,090,732,855` / `1,087,573,024`
   - **Total 6 slots:** `4,145,244,498` local (`4,175,727,307` oficial est., ahorrando `6.14B` respecto al baseline de `10.32B`).
 
-### 3.5 `candidates/sha256-v3/Submission.lean` (`27,179M` local / `27,379M` oficial est., `-9.70B` vs `v2`)
+### 4.5 `candidates/sha256-v3/Submission.lean` (`27,179M` local / `27,379M` oficial est., `-9.70B` vs `v2`)
 - **Arquitectura de `impl` y prueba formal:**
   1. Elimina las 7 máscaras `Nat.land ... 0xffffffff` de `t1U` (0 máscaras), las 4 máscaras de `t2U` (0 máscaras) y 6 de las 7 máscaras de `nextWordR` (1 sola máscara final), más la factorización `maj a b c = (a &&& (b ^^^ c)) ^^^ (b &&& c)`, eliminando **992 de las 1,176 máscaras de 32 bits (84.4%)** y **1,056 operaciones por bloque** (`1,157,376` operaciones menos en los 6 slots).
   2. Inlina `t2_i`, `w_8..w_15`, `w_62..w_63`, `a_0..h_0` y `na_63, ne_63`, reduciendo el telescopio de `let`s de De Bruijn de `328` a `236` bindings por bloque (ahorrando otros `4.28B` de costo cuadrático de `instantiate`).
@@ -74,7 +89,7 @@ Ejecutamos `python3 scripts/lk_readonly.py mine` y `python3 scripts/lk_board.py 
   - `H3 (steps = 512)`: `12,693,463,559` / `12,697,968,357` (vs `17,202.39M` / `17,187.28M` en v2)
   - **Total 6 slots:** `27,179,007,502` local (`27,378,873,276` oficial est.).
 
-### 3.6 `candidates/fib-v3/Submission.lean` (`8.82M` local / `8.88M` oficial est., `-4.42M` vs `v2`)
+### 4.6 `candidates/fib-v3/Submission.lean` (`8.82M` local / `8.88M` oficial est., `-4.42M` vs `v2`)
 - **Arquitectura de `impl` y prueba formal:**
   1. Saca `@Bool.rec` sobre la paridad `n & 1 == 0` fuera de la lambda de continuación `fun a b => ...`, haciendo que `whnf` descarte la rama no tomada antes de que `instantiate_rev` sustituya `a` y `b`.
   2. Reemplaza `Nat.div n 2` y `Nat.mod n 2` por `Nat.shiftRight n 1` y `Nat.land n 1`.
