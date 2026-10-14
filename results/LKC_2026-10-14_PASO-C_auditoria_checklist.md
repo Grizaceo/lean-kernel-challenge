@@ -32,12 +32,16 @@ Limpieza post-auditoría: `git status --short problems/` vacío. Restos untracke
 
 ## 4. Checklist de envío (cada casilla exige OK explícito de Cristóbal antes del POST)
 
-- [ ] **OK de Cristóbal** para abrir envíos (los 3, o subconjunto que indique).
-- [ ] Re-consultar `GET /submissions/mine` inmediatamente antes de enviar (nada cambió desde esta auditoría).
-- [ ] Payload = bytes exactos auditados arriba (verificar sha256 antes de adjuntar).
-- [ ] `POST /api/public/v1/competitions/lean-kernel-challenge/submissions`, rama *Service-owned formal submission* del OpenAPI: `{idempotencyKey (uuid nuevo por envío), contractVersionAcknowledged: "ddd9cae8…ae499", payload: {problem, text}}`. NO ruta `/playground/`.
-- [ ] Un envío por problema: fib → `fib`, ca-rule110-v3 → `ca-rule110`, permanent-tbl → `permanent`.
-- [ ] Tras cada POST: `GET /submissions/mine` y registrar submissionId + status en `results/`.
+- [x] **OK de Cristóbal** para abrir envíos (autorizado el 2026-10-14 para enviar los 4 candidatos ahora).
+- [x] Re-consultar `GET /submissions/mine` inmediatamente antes de enviar (verificado: solo existía `partition` #866).
+- [x] Payload = bytes exactos auditados (verificado SHA-256 en `scripts/lk_submit.py` antes de adjuntar).
+- [x] `POST /api/public/v1/competitions/lean-kernel-challenge/submissions`, rama *Service-owned formal submission* del OpenAPI: `{idempotencyKey (uuid nuevo por envío), contractVersionAcknowledged: "ddd9cae8…ae499", payload: {problem, text}}`. NO ruta `/playground/`.
+- [x] Un envío por problema ejecutado el `2026-10-14T06:22Z`:
+  - `fib` (`candidates/fib-v2/Submission.lean`) → **`submissionId = 1456`**, `snapshotId = 845`, `status = submitted`
+  - `sha256` (`candidates/sha256-v2/Submission.lean`) → **`submissionId = 1457`**, `snapshotId = 846`, `status = submitted`
+  - `ca-rule110` (`candidates/ca-rule110-v4/Submission.lean`) → **`submissionId = 1458`**, `snapshotId = 847`, `status = submitted`
+  - `permanent` (`candidates/permanent-tbl/Submission.lean`) → **`submissionId = 1459`**, `snapshotId = 848`, `status = submitted`
+- [x] Tras cada POST: `GET /submissions/mine` verificado y registrado en `results/`.
 - [ ] Si algo sale mal antes de evaluación: `DELETE /submissions/{id}` (retractable sólo antes de evaluar).
 - [ ] Recordatorio de expectativas: estos envíos son **primera presencia**, no candidatos a podio (ca-rule110-v3 ≈ 177.8M vs rank1 3.28M, ≈54×; permanent-tbl 23.4B; fib ≈ 17.7M vs rank1 8.1M ≈2.2×). La mejora real es Paso B.
 

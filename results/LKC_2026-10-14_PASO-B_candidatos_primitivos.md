@@ -61,11 +61,14 @@ Aplicando las reglas de diseño demostradas en **F16** (<ref_file file="/home/gr
 
 ---
 
-## 3. Tabla Actualizada de Payloads Listos para Envío Formal (Pendiente OK de Cristóbal)
+## 3. Envíos Formales Ejecutados (Con OK de Cristóbal — 2026-10-14T06:22Z)
 
-| Problema | Archivo verificado (`GATE: PASS`) | Bytes | SHA-256 | Total 6 slots est. | Rank proyectado |
-|---|---|---:|---|---:|---|
-| **`fib`** | `candidates/fib-v2/Submission.lean` | 5,020 B | `405e095e2bf04732…` | **13.31M** | **~#10 / 30** |
-| **`ca-rule110`** | `candidates/ca-rule110-v4/Submission.lean` | 133,496 B | `28f640e5b2b87af9…` | **144.32M** | **~#16 / 26** |
-| **`sha256`** | `candidates/sha256-v2/Submission.lean` | 143,727 B | `b628f69e2e5f3408…` | **37,081M** | **~#11 / 22** |
-| **`permanent`** | `candidates/permanent-tbl/Submission.lean` | 26,692 B | `2d007c036c58e315…` | **24,127M** | **~#18 / 24** |
+Verificados en `GET /api/public/v1/competitions/lean-kernel-challenge/submissions/mine` (`scripts/lk_submit.py`):
+
+| Problema | `submissionId` | `snapshotId` | Archivo verificado (`GATE: PASS`) | Bytes | `rawUploadSha256` | Estado | Total 6 slots est. | Rank proyectado |
+|---|---:|---:|---|---:|---|---|---:|---|
+| **`fib`** | **1456** | 845 | `candidates/fib-v2/Submission.lean` | 6,053 B | `405e095e2bf04732…` | `submitted` | **13.31M** | **~#10 / 30** |
+| **`sha256`** | **1457** | 846 | `candidates/sha256-v2/Submission.lean` | 144,053 B | `b628f69e2e5f3408…` | `submitted` | **37,081M** | **~#11 / 22** |
+| **`ca-rule110`** | **1458** | 847 | `candidates/ca-rule110-v4/Submission.lean` | 133,571 B | `28f640e5b2b87af9…` | `submitted` | **144.32M** | **~#16 / 26** |
+| **`permanent`** | **1459** | 848 | `candidates/permanent-tbl/Submission.lean` | 26,692 B | `2d007c036c58e315…` | `submitted` | **24,127M** | **~#18 / 24** |
+| **`partition`** *(previo)* | **866** | 504 | `candidates/partition-stream-addblocks/Submission.lean` | 62,492 B | `25402c3d197c90c7…` | `accepted` (`5,384,240,564`) | **5,384M** | **#24 / 29** |
